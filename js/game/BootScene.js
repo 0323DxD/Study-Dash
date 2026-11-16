@@ -332,28 +332,198 @@ export default class BootScene extends Phaser.Scene {
   }
 
   createEnvironmentTextures() {
+    // 1. Soft Floor Contact Shadow — 48x16
+    const gShadow = this.make.graphics({ x: 0, y: 0, add: false });
+    gShadow.fillStyle(0x000000, 0.45);
+    gShadow.fillEllipse(24, 8, 46, 14);
+    gShadow.fillStyle(0x000000, 0.25);
+    gShadow.fillEllipse(24, 8, 32, 9);
+    gShadow.generateTexture('lib_floor_shadow', 48, 16);
+    gShadow.destroy();
+
+    // 2. Horizon End-of-Corridor Doors & Lockers — 180x90
+    const gHorizon = this.make.graphics({ x: 0, y: 0, add: false });
+    // Corridor back wall
+    gHorizon.fillStyle(0x181a29, 1);
+    gHorizon.fillRect(0, 0, 180, 90);
+
+    // School Lockers (Left & Right)
+    gHorizon.fillStyle(0x2a324b, 1);
+    gHorizon.fillRect(4, 18, 38, 72);
+    gHorizon.fillRect(138, 18, 38, 72);
+    // Locker slots and handles
+    gHorizon.fillStyle(0x1c2233, 1);
+    for (let lx of [12, 24, 146, 158]) {
+      gHorizon.fillRect(lx, 24, 8, 2);
+      gHorizon.fillRect(lx, 28, 8, 2);
+      gHorizon.fillRect(lx, 32, 8, 2);
+      gHorizon.fillRect(lx + 4, 46, 2, 8); // handle
+    }
+
+    // Double Campus Doors (Center)
+    gHorizon.fillStyle(0x3e2723, 1); // Dark mahogany outer architrave
+    gHorizon.fillRect(48, 14, 84, 76);
+    // Left & right door leafs
+    gHorizon.fillStyle(0x4e342e, 1);
+    gHorizon.fillRect(52, 18, 36, 72);
+    gHorizon.fillRect(92, 18, 36, 72);
+    // Door glass panels with glowing interior light
+    gHorizon.fillStyle(0xffe082, 0.85);
+    gHorizon.fillRect(58, 26, 24, 34);
+    gHorizon.fillRect(98, 26, 24, 34);
+    gHorizon.fillStyle(0xfff8e1, 0.95);
+    gHorizon.fillRect(62, 30, 16, 26);
+    gHorizon.fillRect(102, 30, 16, 26);
+    // Brass push bars
+    gHorizon.fillStyle(0xd7ccc8, 1);
+    gHorizon.fillRect(54, 58, 32, 3);
+    gHorizon.fillRect(94, 58, 32, 3);
+
+    // Overhead Banner "STUDY DASH RUN"
+    gHorizon.fillStyle(0x0f111a, 0.9);
+    gHorizon.fillRect(36, 2, 108, 12);
+    gHorizon.lineStyle(1, 0x4cc9f0, 0.7);
+    gHorizon.strokeRect(36, 2, 108, 12);
+    gHorizon.fillStyle(0x4cc9f0, 1);
+    gHorizon.fillRect(40, 6, 100, 4); // Banner accent strip
+    gHorizon.generateTexture('lib_horizon_door', 180, 90);
+    gHorizon.destroy();
+
+    // 3. Bookshelf Left — 72x120
+    const gShelfL = this.make.graphics({ x: 0, y: 0, add: false });
+    // Wood frame
+    gShelfL.fillStyle(0x2d1b11, 1);
+    gShelfL.fillRect(0, 0, 72, 120);
+    gShelfL.fillStyle(0x422819, 1);
+    gShelfL.fillRect(2, 2, 68, 116);
+    // 3 Shelves
+    const bookColors = [0xd90429, 0x0077b6, 0x2d6a4f, 0xffb703, 0x7209b7, 0xf72585, 0xe0e1dd, 0x3a0ca3];
+    for (let shelf = 0; shelf < 3; shelf++) {
+      const sy = 8 + shelf * 38;
+      // Shelf recess shadow
+      gShelfL.fillStyle(0x1a0f0a, 1);
+      gShelfL.fillRect(6, sy, 60, 32);
+      // Books
+      let bx = 8;
+      let cIdx = shelf * 3;
+      while (bx < 62) {
+        const bw = Phaser.Math.Between(5, 9);
+        const bh = Phaser.Math.Between(22, 30);
+        const color = bookColors[cIdx % bookColors.length];
+        cIdx++;
+        gShelfL.fillStyle(color, 1);
+        gShelfL.fillRect(bx, sy + 32 - bh, bw, bh);
+        // Spine highlight
+        gShelfL.fillStyle(0xffffff, 0.25);
+        gShelfL.fillRect(bx + 1, sy + 32 - bh, 1, bh);
+        // Gold foil line
+        if (bh > 26) {
+          gShelfL.fillStyle(0xffd166, 0.8);
+          gShelfL.fillRect(bx + 1, sy + 32 - bh + 6, bw - 2, 2);
+        }
+        bx += bw + 1;
+      }
+      // Wooden shelf ledge
+      gShelfL.fillStyle(0x5c3822, 1);
+      gShelfL.fillRect(4, sy + 32, 64, 4);
+    }
+    gShelfL.generateTexture('lib_bookshelf_left', 72, 120);
+    gShelfL.destroy();
+
+    // 4. Bookshelf Right (Slightly varied book sequence) — 72x120
+    const gShelfR = this.make.graphics({ x: 0, y: 0, add: false });
+    gShelfR.fillStyle(0x2d1b11, 1);
+    gShelfR.fillRect(0, 0, 72, 120);
+    gShelfR.fillStyle(0x422819, 1);
+    gShelfR.fillRect(2, 2, 68, 116);
+    for (let shelf = 0; shelf < 3; shelf++) {
+      const sy = 8 + shelf * 38;
+      gShelfR.fillStyle(0x1a0f0a, 1);
+      gShelfR.fillRect(6, sy, 60, 32);
+      let bx = 8;
+      let cIdx = (shelf + 2) * 4;
+      while (bx < 62) {
+        const bw = Phaser.Math.Between(5, 9);
+        const bh = Phaser.Math.Between(22, 30);
+        const color = bookColors[cIdx % bookColors.length];
+        cIdx++;
+        gShelfR.fillStyle(color, 1);
+        gShelfR.fillRect(bx, sy + 32 - bh, bw, bh);
+        gShelfR.fillStyle(0xffffff, 0.25);
+        gShelfR.fillRect(bx + 1, sy + 32 - bh, 1, bh);
+        if (bh > 25) {
+          gShelfR.fillStyle(0xffd166, 0.8);
+          gShelfR.fillRect(bx + 1, sy + 32 - bh + 8, bw - 2, 2);
+        }
+        bx += bw + 1;
+      }
+      gShelfR.fillStyle(0x5c3822, 1);
+      gShelfR.fillRect(4, sy + 32, 64, 4);
+    }
+    gShelfR.generateTexture('lib_bookshelf_right', 72, 120);
+    gShelfR.destroy();
+
+    // 5. Overhead Ceiling Archway with Pendant Chandelier — 240x50
+    const gArch = this.make.graphics({ x: 0, y: 0, add: false });
+    // Arch Beam
+    gArch.fillStyle(0x1e202f, 1);
+    gArch.fillRect(0, 0, 240, 16);
+    gArch.fillStyle(0x3e2723, 1);
+    gArch.fillRect(0, 16, 240, 6);
+    // Suspended cord
+    gArch.fillStyle(0xb08968, 1);
+    gArch.fillRect(119, 22, 2, 14);
+    // Pendant Lamp fixture
+    gArch.fillStyle(0x7f4f24, 1);
+    gArch.fillTriangle(108, 42, 132, 42, 120, 34);
+    // Glowing lamp bulb
+    gArch.fillStyle(0xffe066, 0.95);
+    gArch.fillCircle(120, 44, 6);
+    gArch.fillStyle(0xffffff, 1);
+    gArch.fillCircle(120, 44, 3);
+    gArch.generateTexture('lib_ceiling_arch', 240, 50);
+    gArch.destroy();
+
+    // 6. Textured Academic Carpet Runner Tile — 300x80
+    const gFloor = this.make.graphics({ x: 0, y: 0, add: false });
+    gFloor.fillStyle(0x131522, 1);
+    gFloor.fillRect(0, 0, 300, 80);
+    // Runner border strips
+    gFloor.fillStyle(0x22273d, 1);
+    gFloor.fillRect(6, 0, 4, 80);
+    gFloor.fillRect(290, 0, 4, 80);
+    // Subtle diamond academic pattern
+    gFloor.lineStyle(1, 0x1f2336, 0.6);
+    for (let x = 20; x < 280; x += 40) {
+      gFloor.strokeRect(x, 10, 20, 20);
+      gFloor.strokeRect(x + 20, 40, 20, 20);
+    }
+    // Faint math/study doodle watermarks
+    gFloor.fillStyle(0x2a3048, 0.45);
+    // Pi doodle
+    gFloor.fillRect(50, 25, 12, 2);
+    gFloor.fillRect(52, 27, 2, 8);
+    gFloor.fillRect(58, 27, 2, 8);
+    // Sigma doodle
+    gFloor.fillRect(140, 25, 10, 2);
+    gFloor.fillRect(140, 33, 10, 2);
+    // Book icon doodle
+    gFloor.fillRect(220, 26, 14, 10);
+    gFloor.fillStyle(0x131522, 1);
+    gFloor.fillRect(226, 26, 2, 10);
+    gFloor.generateTexture('lib_floor_tile', 300, 80);
+    gFloor.destroy();
+
+    // Fallbacks for legacy keys
     const gTie = this.make.graphics({ x: 0, y: 0, add: false });
-    gTie.fillStyle(0x4a4e69, 1);
-    gTie.fillRect(0, 0, 60, 10);
-    gTie.fillStyle(0x22223b, 1);
-    gTie.fillRect(0, 10, 60, 2);
-    gTie.fillStyle(0xadb5bd, 1);
-    gTie.fillRect(8, 0, 4, 10);
-    gTie.fillRect(48, 0, 4, 10);
-    gTie.generateTexture('rail_tie', 60, 12);
+    gTie.fillStyle(0x2a324b, 1);
+    gTie.fillRect(0, 0, 60, 8);
+    gTie.generateTexture('rail_tie', 60, 8);
     gTie.destroy();
 
     const gWall = this.make.graphics({ x: 0, y: 0, add: false });
     gWall.fillStyle(0x1e1e38, 1);
     gWall.fillRect(0, 0, 48, 80);
-    gWall.fillStyle(0x2b2b4c, 1);
-    gWall.fillRect(6, 10, 16, 20);
-    gWall.fillRect(26, 10, 16, 20);
-    gWall.fillRect(6, 44, 16, 20);
-    gWall.fillRect(26, 44, 16, 20);
-    gWall.fillStyle(0xffd166, 0.7);
-    gWall.fillRect(8, 12, 12, 16);
-    gWall.fillRect(28, 46, 12, 16);
     gWall.generateTexture('city_wall', 48, 80);
     gWall.destroy();
   }

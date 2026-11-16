@@ -19,19 +19,17 @@ class GameManager {
   init() {
     if (this.game) return this.game;
 
-    const container = document.getElementById('game-container');
-    const width = container ? container.clientWidth || 400 : 400;
-    const height = container ? container.clientHeight || 700 : 700;
-
     const config = {
       type: Phaser.AUTO,
       parent: 'game-container',
-      width: Math.min(width, 480),
-      height: Math.min(height, 800),
-      backgroundColor: '#141428',
+      width: 480,
+      height: 800,
+      backgroundColor: '#0a0c16',
       scale: {
         mode: Phaser.Scale.FIT,
-        autoCenter: Phaser.Scale.CENTER_BOTH
+        autoCenter: Phaser.Scale.CENTER_BOTH,
+        width: 480,
+        height: 800
       },
       physics: {
         default: 'arcade',
