@@ -16,6 +16,8 @@ export default class GameOverScene extends Phaser.Scene {
     this.finalCoins = data?.coins || 0;
     this.finalDistance = data?.distance || 0;
     this.finalStreak = data?.streak || 0;
+    this.mode = data?.mode || 'endless';
+    this.completedExam = data?.completedExam || false;
 
     // Persist score
     try {
@@ -24,7 +26,7 @@ export default class GameOverScene extends Phaser.Scene {
         coins: this.finalCoins,
         distance: this.finalDistance,
         date: new Date().toISOString(),
-        mode: 'endless'
+        mode: this.mode
       });
     } catch (err) {
       console.warn('[GameOverScene] Failed to save score:', err);
@@ -98,7 +100,7 @@ export default class GameOverScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     playAgainBtn.on('pointerdown', () => {
-      this.scene.start('GameScene');
+      this.scene.start('GameScene', { mode: this.mode });
     });
 
     // Review Mistakes / Dashboard Button

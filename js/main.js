@@ -113,66 +113,12 @@ function escapeHtml(str) {
 /* ─────────────────────────────────────────────────────────
    PHASER INIT
 ───────────────────────────────────────────────────────── */
-let _phaserGame = null;
-
 function initPhaser() {
   if (typeof Phaser === 'undefined') {
     console.warn('[Main] Phaser not loaded yet');
     return null;
   }
-  if (_phaserGame) return _phaserGame;
-
-  // Boot scene — holds the game idle, waiting for play
-  class BootScene extends Phaser.Scene {
-    constructor() { super({ key: 'BootScene' }); }
-
-    preload() {
-      // Preload assets here in future
-    }
-
-    create() {
-      // Camera background matches app theme
-      this.cameras.main.setBackgroundColor('#1a1a2e');
-      console.log('[Phaser] BootScene ready');
-    }
-  }
-
-  const config = {
-    type: Phaser.AUTO,
-    parent: 'game-container',
-    width:  window.innerWidth,
-    height: window.innerHeight,
-    backgroundColor: '#1a1a2e',
-    scale: {
-      mode:          Phaser.Scale.RESIZE,
-      autoCenter:    Phaser.Scale.CENTER_BOTH,
-      width:         '100%',
-      height:        '100%'
-    },
-    physics: {
-      default: 'arcade',
-      arcade:  { gravity: { y: 800 }, debug: false }
-    },
-    audio: {
-      disableWebAudio: false,
-      noAudio: false
-    },
-    scene: [BootScene],
-    // Render on top of HTML UI only when game screen is active
-    dom: { createContainer: false }
-  };
-
-  _phaserGame = new Phaser.Game(config);
-
-  // Handle resize
-  window.addEventListener('resize', () => {
-    if (_phaserGame) {
-      _phaserGame.scale.resize(window.innerWidth, window.innerHeight);
-    }
-  });
-
-  console.log('[Phaser] Game initialised');
-  return _phaserGame;
+  return gameManager.init();
 }
 
 /* ─────────────────────────────────────────────────────────
@@ -817,11 +763,52 @@ function wireQuickPlay() {
       const mode = el.dataset.mode;
       if (!mode) return;
       const questions = State.get('questions');
-      if (questions.length === 0 && mode !== 'game') {
-        showToast('Add some questions first!', 'warning');
+      if (questions.length === 0) {
+        showToast('Add some questions in Question Bank first!', 'warning');
         return;
       }
-      Router.navigate(mode);
+      if (mode === 'customRun') {
+        Router.navigate('customRun');
+      } else {
+        // Start the real Subway Surfers endless runner in this mode!
+        const runnerMode = mode === 'game' ? 'endless' : mode;
+        Router.navigate('game', { mode: runnerMode });
+      }
+    });
+  });
+
+  // Pause menu listener from Phaser GameScene
+  window.addEventListener('study-dash-pause-game', () => {
+    openModal({
+      title: 'Game Paused ⏸',
+      body: '<p style="text-align:center;">Catch your breath! Ready to jump back on the tracks?</p>',
+      buttons: [
+        {
+          label: 'Resume Running ▶',
+          style: 'btn-primary',
+          action: () => {
+            closeModal();
+            const activeScene = gameManager.game?.scene?.getScene('GameScene');
+            if (activeScene) activeScene.scene.resume();
+          }
+        },
+        {
+          label: 'Restart Run 🔄',
+          action: () => {
+            closeModal();
+            gameManager.startGame();
+          }
+        },
+        {
+          label: 'Exit to Dashboard 📚',
+          style: 'btn-danger',
+          action: () => {
+            closeModal();
+            gameManager.stopGame();
+            Router.navigate('home');
+          }
+        }
+      ]
     });
   });
 }

@@ -53,6 +53,8 @@ class GameManager {
    * Starts a game run with optional mode and filter.
    */
   startGame(mode = 'endless', filter = {}) {
+    window.__studyDashStartData = { mode, filter };
+
     const container = document.getElementById('game-container');
     if (container) {
       container.classList.add('active');
@@ -62,11 +64,9 @@ class GameManager {
     if (!this.game) {
       this.init();
     } else {
-      const activeScene = this.game.scene.getScene('GameScene');
-      if (activeScene) {
-        this.game.scene.stop('GameOverScene');
-        this.game.scene.start('GameScene', { mode, filter });
-      }
+      this.game.scene.stop('GameOverScene');
+      this.game.scene.stop('GameScene');
+      this.game.scene.start('GameScene', { mode, filter });
     }
   }
 

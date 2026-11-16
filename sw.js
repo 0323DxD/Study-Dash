@@ -23,6 +23,7 @@ const PRE_CACHE_ASSETS = [
   './js/game/GameScene.js',
   './js/game/GameOverScene.js',
   './js/game/TouchControls.js',
+  './js/game/SoundEffects.js',
   './js/services/SeedData.js',
   './js/services/GameQuestionService.js',
   './js/services/ImportService.js',

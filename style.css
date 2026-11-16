@@ -190,6 +190,7 @@ input, select, textarea {
 #game-container.active {
   pointer-events: auto;
   opacity: 1;
+  z-index: 150;
 }
 
 #game-container canvas {

@@ -35,17 +35,9 @@ export const CustomReviewerRun = {
         count
       };
 
-      if (mode === 'studyMode') {
-        Router.navigate('studyMode', filter);
-      } else if (mode === 'examChallenge') {
-        Router.navigate('examChallenge', filter);
-      } else if (mode === 'timeAttack') {
-        Router.navigate('timeAttack', filter);
-      } else {
-        // Endless Runner
-        Router.navigate('game', { mode: 'custom', filter });
-        gameManager.startGame('custom', filter);
-      }
+      // Launch the endless runner with custom subject/lesson filter and selected mode
+      Router.navigate('game', { mode, filter });
+      gameManager.startGame(mode, filter);
     };
   },
 

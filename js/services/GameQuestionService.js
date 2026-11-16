@@ -84,12 +84,12 @@ export const GameQuestionService = {
     let questions = await DB.getAll('questions');
 
     // 1. If Mistake Review mode: get questions logged as mistakes
-    if (mode === 'mistakes') {
+    if (mode === 'mistakes' || mode === 'mistakeReview') {
       const mistakeLogs = await DB.getAll('mistakeLog');
       const mistakeQIds = new Set(mistakeLogs.map(m => m.questionId));
-      questions = questions.filter(q => mistakeQIds.has(q.id));
-      if (questions.length === 0) {
-        return [];
+      const mistakesFound = questions.filter(q => mistakeQIds.has(q.id));
+      if (mistakesFound.length > 0) {
+        questions = mistakesFound;
       }
     }
 
