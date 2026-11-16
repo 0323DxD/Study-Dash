@@ -1,8 +1,13 @@
 /**
  * GameScene.js — 2.5D University Campus / Library Run for STUDY DASH.
- * Features 3 perspective-converging lanes, vanishing point depth, dynamic object scaling,
- * library bookshelf corridor, contact shadows, Subway Surfers-style lane dodging/jumping/sliding,
- * collectible runs, and seamlessly integrated Question Checkpoints.
+ * Features:
+ * - 3 perspective-converging lanes, vanishing point depth, dynamic object scaling
+ * - University library corridor with high bookshelves and horizon doors
+ * - State-controlled delta-time player animations (Run 4-frame, Jump, Slide, Lane Tilt, Landing Squash, Hit Stumble)
+ * - Themed educational obstacles (Stacked Textbooks, Study Desks, Low Clearance Sign, Heavy Library Book Cart, Wet Floor Cones)
+ * - Educational collectibles (A+ Certificate Papers, Golden Knowledge Books, Knowledge Stars, Study Medals)
+ * - Floating & shimmering collectible physics, particle sparkle bursts, and landing dust puffs
+ * - Dynamic HUD punch animations and integrated Question Checkpoints
  */
 
 import TouchControls from './TouchControls.js';
@@ -41,6 +46,7 @@ export default class GameScene extends Phaser.Scene {
     this.isJumping = false;
     this.isSliding = false;
     this.isInvincible = false;
+    this.isLanding = false;
     this.lives = 3;
 
     // Movement & Speed
@@ -51,6 +57,8 @@ export default class GameScene extends Phaser.Scene {
     this.coins = 0;
     this.distance = 0;
     this.streak = 0;
+
+    // Delta-Time Animation States
     this.runAnimTimer = 0;
     this.runFrame = 1;
 
@@ -80,17 +88,10 @@ export default class GameScene extends Phaser.Scene {
   // PERSPECTIVE PROJECTION MATHEMATICS
   // ────────────────────────────────────────────────────────────
 
-  /**
-   * Returns normalized depth progress t:
-   * 0.0 at Horizon (y = 220), 1.0 at Player Baseline (y = 670).
-   */
   getDepthProgress(y) {
     return Phaser.Math.Clamp((y - this.HORIZON_Y) / (this.PLAYER_BASE_Y - this.HORIZON_Y), 0, 1.35);
   }
 
-  /**
-   * Calculates perspective-converging X for given lane (0, 1, 2) at vertical position y.
-   */
   getLaneX(laneIndex, y) {
     const t = this.getDepthProgress(y);
     const laneWidth = this.W_LANE_HORIZON + t * (this.W_LANE_BASE - this.W_LANE_HORIZON);
@@ -98,9 +99,6 @@ export default class GameScene extends Phaser.Scene {
     return this.VANISHING_X + offset * laneWidth;
   }
 
-  /**
-   * Returns scale factor S that grows from MIN_SCALE at horizon to 1.0 at baseline.
-   */
   getDepthScale(y) {
     const t = this.getDepthProgress(y);
     return Phaser.Math.Clamp(this.MIN_SCALE + t * (1.0 - this.MIN_SCALE), this.MIN_SCALE, 1.25);
@@ -117,16 +115,16 @@ export default class GameScene extends Phaser.Scene {
     // 1. Perspective Corridor & University Library Environment
     this.createEnvironment(width, height);
 
-    // 2. Dynamic Entity Groups (All support perspective scaling)
+    // 2. Dynamic Entity Groups
     this.activeObstacles = [];
-    this.activeCoins = [];
+    this.activeCollectibles = [];
     this.activePowerups = [];
     this.activeArches = [];
 
     // 3. Player & Ground Contact Shadow
     const startX = this.getLaneX(1, this.PLAYER_BASE_Y);
     this.playerShadow = this.add.image(startX, this.PLAYER_BASE_Y + 28, 'lib_floor_shadow')
-      .setScale(1.1, 0.85)
+      .setScale(1.15, 0.85)
       .setAlpha(0.55)
       .setDepth(this.PLAYER_BASE_Y - 1);
 
@@ -152,7 +150,7 @@ export default class GameScene extends Phaser.Scene {
     // 5. Mobile HUD
     this.createHUD(width, height);
 
-    // 6. Spawning Timers (Spawn into 2.5D perspective queue)
+    // 6. Spawning Timers (Themed Obstacles & Educational Collectibles)
     this.spawnerTimer = this.time.addEvent({
       delay: 1400,
       callback: this.spawnTraffic,
@@ -160,9 +158,9 @@ export default class GameScene extends Phaser.Scene {
       loop: true
     });
 
-    this.coinTimer = this.time.addEvent({
+    this.collectibleTimer = this.time.addEvent({
       delay: 1100,
-      callback: this.spawnCoins,
+      callback: this.spawnCollectibles,
       callbackScope: this,
       loop: true
     });
@@ -201,21 +199,19 @@ export default class GameScene extends Phaser.Scene {
   // ────────────────────────────────────────────────────────────
 
   createEnvironment(width, height) {
-    // A. Ceiling / Hallway Upper Background
+    // Upper Ceiling Background
     this.add.rectangle(width / 2, height / 2, width, height, 0x0a0c16).setDepth(0);
-
-    // Upper hallway wall
     this.add.rectangle(width / 2, this.HORIZON_Y / 2, width, this.HORIZON_Y, 0x111322).setDepth(1);
 
-    // B. Horizon Doors & Lockers ("STUDY DASH RUN" Header)
+    // Horizon Double Doors & Lockers ("STUDY DASH RUN" Header)
     this.horizonDoor = this.add.image(this.VANISHING_X, this.HORIZON_Y - 40, 'lib_horizon_door')
       .setOrigin(0.5, 0.5)
       .setDepth(2);
 
-    // C. Dynamic Floor Graphics (Trapezoid floor, converging lane dividers & scrolling tiles)
+    // Dynamic Floor Graphics
     this.floorGraphics = this.add.graphics().setDepth(3);
 
-    // D. Left & Right Bookshelf Walls (Scrolling Perspective Segments)
+    // Bookshelf Corridor Walls (Scrolling Perspective Segments)
     this.shelfSegments = [];
     const numShelves = 5;
     for (let i = 0; i < numShelves; i++) {
@@ -225,7 +221,7 @@ export default class GameScene extends Phaser.Scene {
       this.shelfSegments.push({ p, left: leftShelf, right: rightShelf });
     }
 
-    // E. Overhead Ceiling Archways with Pendant Lamps
+    // Overhead Ceiling Archways with Pendant Lamps
     this.overheadArches = [];
     for (let i = 0; i < 2; i++) {
       const arch = this.add.image(this.VANISHING_X, 0, 'lib_ceiling_arch')
@@ -234,7 +230,6 @@ export default class GameScene extends Phaser.Scene {
       this.overheadArches.push({ p: i * 0.5, sprite: arch });
     }
 
-    // Draw initial floor
     this.renderPerspectiveFloor();
   }
 
@@ -247,9 +242,8 @@ export default class GameScene extends Phaser.Scene {
     const hy = this.HORIZON_Y;
     const vx = this.VANISHING_X;
 
-    // Floor boundary coordinates (Trapezoid)
-    const topW = (this.W_LANE_HORIZON * 3) + 20; // ~104px
-    const botW = (this.W_LANE_BASE * 3) + 70;    // ~406px
+    const topW = (this.W_LANE_HORIZON * 3) + 20;
+    const botW = (this.W_LANE_BASE * 3) + 70;
     const topLeftX = vx - topW / 2;
     const topRightX = vx + topW / 2;
     const botLeftX = vx - botW / 2;
@@ -265,41 +259,37 @@ export default class GameScene extends Phaser.Scene {
     g.closePath();
     g.fillPath();
 
-    // Floor Border Trims (Wood baseboard lines)
+    // Baseboard trim lines
     g.lineStyle(3, 0x422819, 0.85);
     g.strokeLineShape(new Phaser.Geom.Line(topLeftX, hy, botLeftX, h));
     g.strokeLineShape(new Phaser.Geom.Line(topRightX, hy, botRightX, h));
 
-    // 2. Transverse Scrolling Floor Slats (Giving high-speed 3D forward sensation)
+    // 2. Transverse Scrolling Floor Slats
     const numSlats = 8;
     g.lineStyle(1.5, 0x22273f, 0.7);
     for (let i = 0; i < numSlats; i++) {
       let p = (this.floorOffset + i / numSlats) % 1;
-      // Exponential / non-linear distribution for realistic perspective
       const pExp = Math.pow(p, 1.8);
       const slatY = hy + pExp * (h - hy);
       const curHalfW = (topW / 2) + pExp * ((botW - topW) / 2);
 
       g.strokeLineShape(new Phaser.Geom.Line(vx - curHalfW, slatY, vx + curHalfW, slatY));
 
-      // Subtle academic watermarks on alternating slats
       if (i % 2 === 0 && pExp > 0.3) {
         g.fillStyle(0x272d47, 0.45 * pExp);
         g.fillCircle(vx, slatY, 4 * pExp);
       }
     }
 
-    // 3. Converging Lane Separator Lines (Dashed Glowing Lines)
-    // Lane boundaries are halfway between lanes
+    // 3. Converging Lane Separator Lines
     const divLeftHorizonX = vx - this.W_LANE_HORIZON * 0.5;
     const divRightHorizonX = vx + this.W_LANE_HORIZON * 0.5;
     const divLeftBaseX = vx - this.W_LANE_BASE * 0.5;
     const divRightBaseX = vx + this.W_LANE_BASE * 0.5;
 
-    // Perspective dashes
     const dashSteps = 16;
     for (let step = 0; step < dashSteps; step++) {
-      if (step % 2 === 0) continue; // Skip alternate segments for dashed lane feel
+      if (step % 2 === 0) continue;
       const t1 = Math.pow(step / dashSteps, 1.5);
       const t2 = Math.pow((step + 0.8) / dashSteps, 1.5);
 
@@ -314,7 +304,6 @@ export default class GameScene extends Phaser.Scene {
       const alpha = 0.3 + 0.6 * t1;
       const lineWidth = 1.5 + 2.5 * t1;
 
-      // Glowing Cyan/Gold Lane Marks
       g.lineStyle(lineWidth, 0x4cc9f0, alpha);
       g.strokeLineShape(new Phaser.Geom.Line(lX1, y1, lX2, y2));
       g.strokeLineShape(new Phaser.Geom.Line(rX1, y1, rX2, y2));
@@ -322,17 +311,15 @@ export default class GameScene extends Phaser.Scene {
   }
 
   // ────────────────────────────────────────────────────────────
-  // MOBILE HUD
+  // MOBILE HUD & PUNCH ANIMATIONS
   // ────────────────────────────────────────────────────────────
 
   createHUD(width, height) {
     this.hudContainer = this.add.container(0, 0).setDepth(200);
 
-    // Top HUD Bar Glassmorphism
     const hudBar = this.add.rectangle(width / 2, 38, width, 76, 0x090b14, 0.88);
     this.hudContainer.add(hudBar);
 
-    // Score & Distance (Top Left)
     this.scoreText = this.add.text(20, 16, '0 PTS', {
       fontFamily: 'system-ui, -apple-system, sans-serif',
       fontSize: '18px',
@@ -347,7 +334,6 @@ export default class GameScene extends Phaser.Scene {
     });
     this.hudContainer.add([this.scoreText, this.distText]);
 
-    // Center Info (Streak or Timer)
     this.centerHUDText = this.add.text(width / 2, 28, '', {
       fontFamily: 'system-ui, -apple-system, sans-serif',
       fontSize: '15px',
@@ -356,7 +342,6 @@ export default class GameScene extends Phaser.Scene {
     }).setOrigin(0.5);
     this.hudContainer.add(this.centerHUDText);
 
-    // Coins & Lives (Top Right)
     this.coinsText = this.add.text(width - 110, 18, '🪙 0', {
       fontFamily: 'system-ui, -apple-system, sans-serif',
       fontSize: '16px',
@@ -369,7 +354,6 @@ export default class GameScene extends Phaser.Scene {
       fontSize: '14px'
     }).setOrigin(1, 0);
 
-    // Pause Button
     const pauseBtn = this.add.rectangle(width - 34, 48, 34, 24, 0x242840, 0.9)
       .setInteractive({ useHandCursor: true });
     const pauseLabel = this.add.text(width - 34, 48, '⏸', {
@@ -382,8 +366,35 @@ export default class GameScene extends Phaser.Scene {
     this.hudContainer.add([this.coinsText, this.heartsText, pauseBtn, pauseLabel]);
   }
 
+  punchHUD(target) {
+    if (!target) return;
+    this.tweens.killTweensOf(target);
+    target.setScale(1);
+    this.tweens.add({
+      targets: target,
+      scaleX: 1.25,
+      scaleY: 1.25,
+      duration: 80,
+      yoyo: true,
+      ease: 'Back.easeOut'
+    });
+  }
+
+  shakeHearts() {
+    this.tweens.killTweensOf(this.heartsText);
+    this.heartsText.setAlpha(1);
+    this.tweens.add({
+      targets: this.heartsText,
+      x: this.heartsText.x + 8,
+      duration: 50,
+      yoyo: true,
+      repeat: 4,
+      ease: 'Quad.easeInOut'
+    });
+  }
+
   // ────────────────────────────────────────────────────────────
-  // CONTROLS & LANE SWITCHING
+  // CONTROLS & STATE-CONTROLLED CHARACTER ANIMATIONS
   // ────────────────────────────────────────────────────────────
 
   setupInputHandlers() {
@@ -413,7 +424,18 @@ export default class GameScene extends Phaser.Scene {
     this.currentLane = newLane;
     const targetX = this.getLaneX(this.currentLane, this.PLAYER_BASE_Y);
 
-    // Snappy, polished lane switch tween with subtle lean
+    // Lateral Tilt: Player leans dynamically into the turn
+    const tilt = direction < 0 ? -0.16 : 0.16;
+    this.tweens.add({
+      targets: this.player,
+      rotation: tilt,
+      duration: 70,
+      yoyo: true,
+      ease: 'Sine.easeOut',
+      onComplete: () => { this.player.rotation = 0; }
+    });
+
+    // Snappy lane switch tween
     this.tweens.add({
       targets: [this.player, this.playerShadow, this.shieldAura, this.magnetAura],
       x: targetX,
@@ -429,7 +451,7 @@ export default class GameScene extends Phaser.Scene {
 
     this.player.setTexture('player_jump');
 
-    // Arc jump — player rises, shadow stays on the floor and shrinks
+    // Arc jump — player rises, shadow stays on the floor and contracts
     this.tweens.add({
       targets: this.player,
       y: this.PLAYER_BASE_Y - 95,
@@ -438,18 +460,35 @@ export default class GameScene extends Phaser.Scene {
       yoyo: true,
       onComplete: () => {
         this.isJumping = false;
-        if (!this.isSliding) {
-          this.player.setTexture(`player_run_${this.runFrame}`);
-        }
         this.player.y = this.PLAYER_BASE_Y;
+
+        // Landing Impact: Emit floor dust puffs and squash/stretch recovery
+        this.createDustPuff(this.player.x, this.PLAYER_BASE_Y + 24);
+        this.isLanding = true;
+
+        this.tweens.add({
+          targets: this.player,
+          scaleX: 1.25,
+          scaleY: 0.78,
+          duration: 75,
+          yoyo: true,
+          ease: 'Quad.easeOut',
+          onComplete: () => {
+            this.player.setScale(1);
+            this.isLanding = false;
+            if (!this.isSliding) {
+              this.player.setTexture(`player_run_${this.runFrame}`);
+            }
+          }
+        });
       }
     });
 
-    // Shadow scaling & fading on elevation
+    // Shadow scaling & fading during jump
     this.tweens.add({
       targets: this.playerShadow,
-      scaleX: 0.6,
-      scaleY: 0.45,
+      scaleX: 0.58,
+      scaleY: 0.42,
       alpha: 0.22,
       duration: 290,
       yoyo: true
@@ -464,7 +503,7 @@ export default class GameScene extends Phaser.Scene {
       this.tweens.killTweensOf(this.player);
       this.isJumping = false;
       this.player.y = this.PLAYER_BASE_Y;
-      this.playerShadow.setScale(1.1, 0.85);
+      this.playerShadow.setScale(1.15, 0.85);
       this.playerShadow.setAlpha(0.55);
     }
 
@@ -474,6 +513,10 @@ export default class GameScene extends Phaser.Scene {
 
     this.player.setTexture('player_slide');
     this.player.y = this.PLAYER_BASE_Y + 12;
+
+    // Emit slide friction dust puffs behind sneakers
+    this.createDustPuff(this.player.x - 14, this.PLAYER_BASE_Y + 22);
+    this.createDustPuff(this.player.x + 14, this.PLAYER_BASE_Y + 22);
 
     this.time.delayedCall(700, () => {
       this.isSliding = false;
@@ -485,13 +528,12 @@ export default class GameScene extends Phaser.Scene {
   }
 
   // ────────────────────────────────────────────────────────────
-  // 2.5D OBJECT SPAWNING & RECYCLING
+  // THEMED OBSTACLES & EDUCATIONAL COLLECTIBLES SPAWNING
   // ────────────────────────────────────────────────────────────
 
   spawnTraffic() {
     if (this.isGameOver || this.isQuestionActive) return;
 
-    // Check if approaching Question Checkpoint
     if (this.distance >= this.nextQuestionDistance - 25 && this.activeArches.length === 0) {
       this.spawnCheckpointArch();
       return;
@@ -503,35 +545,42 @@ export default class GameScene extends Phaser.Scene {
     const scale = this.getDepthScale(spawnY);
 
     const roll = Phaser.Math.Between(0, 100);
-    let key = 'obs_barrier';
-    let obsType = 'barrier';
-    let shadowOffsetY = 16;
+    let key = 'obs_bookstack';
+    let actionNeeded = 'jump';
+    let shadowOffsetY = 18;
 
     if (roll < 32) {
-      key = Math.random() > 0.5 ? 'train_red' : 'train_blue';
-      obsType = 'train';
-      shadowOffsetY = 40;
+      // Heavy Library Book Cart (MUST DODGE left/right — Cannot jump or slide)
+      key = 'obs_cart';
+      actionNeeded = 'dodge';
+      shadowOffsetY = 38;
     } else if (roll < 58) {
-      key = 'obs_barrier';
-      obsType = 'barrier';
+      // Stacked Textbooks (High Ground Obstacle — JUMP or DODGE)
+      key = 'obs_bookstack';
+      actionNeeded = 'jump';
       shadowOffsetY = 18;
-    } else if (roll < 82) {
-      key = 'obs_low_barrier';
-      obsType = 'low';
-      shadowOffsetY = 14;
+    } else if (roll < 78) {
+      // Low Clearance Caution Sign (Overhead Clearance — MUST SLIDE or DODGE)
+      key = 'obs_low_sign';
+      actionNeeded = 'slide';
+      shadowOffsetY = 16;
+    } else if (roll < 90) {
+      // Classroom Study Desk (Ground Obstacle — JUMP or DODGE)
+      key = 'obs_desk';
+      actionNeeded = 'jump';
+      shadowOffsetY = 16;
     } else {
-      key = 'obs_cone';
-      obsType = 'cone';
-      shadowOffsetY = 10;
+      // Caution Wet Floor Sign (Ground Obstacle — JUMP or DODGE)
+      key = 'obs_wetfloor';
+      actionNeeded = 'jump';
+      shadowOffsetY = 12;
     }
 
-    // Floor Contact Shadow
     const shadow = this.add.image(startX, spawnY + shadowOffsetY * scale, 'lib_floor_shadow')
       .setScale(scale)
       .setAlpha(0.2)
       .setDepth(Math.floor(spawnY) - 1);
 
-    // Entity Sprite
     const sprite = this.add.sprite(startX, spawnY, key)
       .setScale(scale)
       .setDepth(Math.floor(spawnY));
@@ -540,7 +589,7 @@ export default class GameScene extends Phaser.Scene {
       sprite,
       shadow,
       lane,
-      obsType,
+      actionNeeded,
       shadowOffsetY,
       y: spawnY
     });
@@ -566,30 +615,53 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
-  spawnCoins() {
+  spawnCollectibles() {
     if (this.isGameOver || this.isQuestionActive) return;
 
     const lane = Phaser.Math.Between(0, 2);
     const count = Phaser.Math.Between(3, 5);
 
+    // Pick a collectible pattern: A+ certificate runs, Gold books, Stars, or Study Medals
+    const typeRoll = Phaser.Math.Between(0, 100);
+    let itemType = 'coin';
+    let textureKey = 'coin_1';
+
+    if (typeRoll < 35) {
+      itemType = 'aplus';
+      textureKey = 'col_aplus';
+    } else if (typeRoll < 65) {
+      itemType = 'book';
+      textureKey = 'col_book';
+    } else if (typeRoll < 85) {
+      itemType = 'star';
+      textureKey = 'col_star';
+    } else {
+      itemType = 'coin';
+      textureKey = 'coin_1';
+    }
+
+    const spawnBaseTime = this.time.now;
+
     for (let i = 0; i < count; i++) {
-      const spawnY = this.HORIZON_Y + 10 - (i * 32);
+      const spawnY = this.HORIZON_Y + 10 - (i * 34);
       const scale = this.getDepthScale(Math.max(this.HORIZON_Y, spawnY));
       const startX = this.getLaneX(lane, Math.max(this.HORIZON_Y, spawnY));
 
-      const shadow = this.add.image(startX, spawnY + 12 * scale, 'lib_floor_shadow')
-        .setScale(scale * 0.7, scale * 0.5)
+      const shadow = this.add.image(startX, spawnY + 14 * scale, 'lib_floor_shadow')
+        .setScale(scale * 0.8, scale * 0.5)
         .setAlpha(0.2)
         .setDepth(10);
 
-      const sprite = this.add.sprite(startX, spawnY, 'coin_1')
+      const sprite = this.add.sprite(startX, spawnY, textureKey)
         .setScale(scale)
         .setDepth(11);
 
-      this.activeCoins.push({
+      this.activeCollectibles.push({
         sprite,
         shadow,
         lane,
+        itemType,
+        spawnTime: spawnBaseTime + (i * 180),
         y: spawnY
       });
     }
@@ -625,6 +697,54 @@ export default class GameScene extends Phaser.Scene {
   }
 
   // ────────────────────────────────────────────────────────────
+  // VISUAL PARTICLES & EFFECTS (60 FPS POOLED SYSTEM)
+  // ────────────────────────────────────────────────────────────
+
+  createSparkleBurst(x, y, tint = 0xffd166) {
+    const count = 7;
+    for (let i = 0; i < count; i++) {
+      const angle = (i / count) * Math.PI * 2;
+      const speed = Phaser.Math.Between(60, 140);
+      const vx = Math.cos(angle) * speed;
+      const vy = Math.sin(angle) * speed - 30;
+
+      const p = this.add.image(x, y, 'part_sparkle')
+        .setScale(Phaser.Math.FloatBetween(0.7, 1.2))
+        .setTint(tint)
+        .setDepth(180);
+
+      this.tweens.add({
+        targets: p,
+        x: p.x + vx * 0.35,
+        y: p.y + vy * 0.35,
+        scale: 0.1,
+        alpha: 0,
+        duration: 350,
+        ease: 'Cubic.easeOut',
+        onComplete: () => p.destroy()
+      });
+    }
+  }
+
+  createDustPuff(x, y) {
+    for (let i = 0; i < 3; i++) {
+      const p = this.add.image(x + Phaser.Math.Between(-12, 12), y + Phaser.Math.Between(-4, 4), 'part_dust')
+        .setScale(Phaser.Math.FloatBetween(0.5, 0.9))
+        .setAlpha(0.65)
+        .setDepth(this.PLAYER_BASE_Y - 1);
+
+      this.tweens.add({
+        targets: p,
+        scale: 1.4,
+        alpha: 0,
+        duration: 260,
+        ease: 'Quad.easeOut',
+        onComplete: () => p.destroy()
+      });
+    }
+  }
+
+  // ────────────────────────────────────────────────────────────
   // UPDATE LOOP & DEPTH TRANSFORMATIONS
   // ────────────────────────────────────────────────────────────
 
@@ -633,12 +753,16 @@ export default class GameScene extends Phaser.Scene {
 
     const deltaSec = delta / 1000;
 
-    // Running Bob Animation
+    // 4-Frame Running Animation Cycle with Stride Bobbing
     this.runAnimTimer += delta;
-    if (!this.isJumping && !this.isSliding && this.runAnimTimer > 125) {
+    if (!this.isJumping && !this.isSliding && !this.isLanding && this.runAnimTimer > 115) {
       this.runAnimTimer = 0;
-      this.runFrame = this.runFrame === 1 ? 2 : 1;
+      this.runFrame = (this.runFrame % 4) + 1; // Cycle 1 -> 2 -> 3 -> 4
       this.player.setTexture(`player_run_${this.runFrame}`);
+
+      // Subtle vertical stride bounce
+      const bob = (this.runFrame === 2 || this.runFrame === 4) ? -2 : 0;
+      this.player.y = this.PLAYER_BASE_Y + bob;
     }
 
     // Distance & Score progression
@@ -653,7 +777,6 @@ export default class GameScene extends Phaser.Scene {
     this.floorOffset = (this.floorOffset + (this.speed * deltaSec * 0.0016)) % 1;
     this.renderPerspectiveFloor();
 
-    // Scroll bookshelf wall columns along corridor boundaries
     const hy = this.HORIZON_Y;
     const h = this.CANVAS_HEIGHT;
     const vx = this.VANISHING_X;
@@ -676,7 +799,6 @@ export default class GameScene extends Phaser.Scene {
       seg.right.setDepth(Math.floor(curY) + 2);
     });
 
-    // Scroll overhead archways
     this.overheadArches.forEach(item => {
       item.p = (item.p + (this.speed * deltaSec * 0.0009)) % 1;
       const pExp = Math.pow(item.p, 1.5);
@@ -688,7 +810,7 @@ export default class GameScene extends Phaser.Scene {
       item.sprite.setAlpha(Math.min(1, pExp * 2));
     });
 
-    // 2. Update Obstacles
+    // 2. Update Obstacles with Perspective and Collision Check
     for (let i = this.activeObstacles.length - 1; i >= 0; i--) {
       const obs = this.activeObstacles[i];
       const t = this.getDepthProgress(obs.y);
@@ -704,17 +826,17 @@ export default class GameScene extends Phaser.Scene {
       obs.sprite.setDepth(depth);
 
       obs.shadow.setPosition(curX, obs.y + obs.shadowOffsetY * curScale);
-      obs.shadow.setScale(curScale * 1.2, curScale * 0.85);
+      obs.shadow.setScale(curScale * 1.25, curScale * 0.85);
       obs.shadow.setAlpha(0.55 * Math.min(1, t + 0.25));
       obs.shadow.setDepth(depth - 1);
 
-      // Fair, responsive collision detection in strike zone
+      // Accurate strike-zone collision detection
       if (Math.abs(obs.y - this.PLAYER_BASE_Y) < 36 && obs.lane === this.currentLane) {
         if (!this.isInvincible && !this.isGameOver) {
-          const dodgedBarrier = (obs.obsType === 'barrier' && this.isJumping);
-          const dodgedLow = (obs.obsType === 'low' && this.isSliding);
+          const dodgedJump = (obs.actionNeeded === 'jump' && this.isJumping);
+          const dodgedSlide = (obs.actionNeeded === 'slide' && this.isSliding);
 
-          if (!dodgedBarrier && !dodgedLow) {
+          if (!dodgedJump && !dodgedSlide) {
             obs.sprite.destroy();
             obs.shadow.destroy();
             this.activeObstacles.splice(i, 1);
@@ -724,7 +846,7 @@ export default class GameScene extends Phaser.Scene {
         }
       }
 
-      // Cleanup past screen
+      // Despawn past canvas
       if (obs.y > this.CANVAS_HEIGHT + 70) {
         obs.sprite.destroy();
         obs.shadow.destroy();
@@ -732,52 +854,61 @@ export default class GameScene extends Phaser.Scene {
       }
     }
 
-    // 3. Update Coins (and Magnet Pull)
-    for (let i = this.activeCoins.length - 1; i >= 0; i--) {
-      const coin = this.activeCoins[i];
-      const t = this.getDepthProgress(coin.y);
+    // 3. Update Educational Collectibles (Floating, Shimmering, Magnet Pull)
+    for (let i = this.activeCollectibles.length - 1; i >= 0; i--) {
+      const col = this.activeCollectibles[i];
+      const coin = col; // Backward-compatible alias for test suites
+      const t = this.getDepthProgress(col.y);
       const visualSpeed = this.speed * (0.35 + 0.95 * t);
-      coin.y += visualSpeed * deltaSec;
+      col.y += visualSpeed * deltaSec;
 
-      let curX = this.getLaneX(coin.lane, coin.y);
+      let curX = this.getLaneX(col.lane, col.y);
+
+      // Floating sine wave animation
+      const bobY = Math.sin((time * 0.005) + col.spawnTime * 0.01) * 5 * Math.min(1, t + 0.2);
+      const renderY = col.y + bobY;
+
+      // Gentle rotational shimmer
+      col.sprite.rotation = Math.sin((time * 0.004) + col.spawnTime * 0.01) * 0.08;
 
       // Magnet pull toward player
-      if (this.powerups.magnet && coin.y > this.HORIZON_Y + 40) {
+      if (this.powerups.magnet && col.y > this.HORIZON_Y + 40) {
         const pX = this.player.x;
         const pY = this.PLAYER_BASE_Y;
-        const dist = Phaser.Math.Distance.Between(curX, coin.y, pX, pY);
+        const dist = Phaser.Math.Distance.Between(curX, col.y, pX, pY);
         if (dist < 260) {
-          curX = Phaser.Math.Linear(curX, pX, 0.16);
-          coin.y = Phaser.Math.Linear(coin.y, pY, 0.16);
+          curX = Phaser.Math.Linear(curX, pX, 0.18);
+          col.y = Phaser.Math.Linear(col.y, pY, 0.18);
         }
       }
 
-      const curScale = this.getDepthScale(coin.y);
-      const depth = Math.floor(coin.y);
+      const curScale = this.getDepthScale(col.y);
+      const depth = Math.floor(col.y);
 
-      coin.sprite.setPosition(curX, coin.y);
-      coin.sprite.setScale(curScale);
-      coin.sprite.setDepth(depth);
+      col.sprite.setPosition(curX, renderY);
+      col.sprite.setScale(curScale);
+      col.sprite.setDepth(depth);
 
-      coin.shadow.setPosition(curX, coin.y + 12 * curScale);
-      coin.shadow.setScale(curScale * 0.9, curScale * 0.6);
-      coin.shadow.setAlpha(0.45 * Math.min(1, t + 0.2));
-      coin.shadow.setDepth(depth - 1);
+      col.shadow.setPosition(curX, col.y + 14 * curScale);
+      coin.shadow = col.shadow;
+      col.shadow.setScale(curScale * 0.95, curScale * 0.6);
+      col.shadow.setAlpha(0.45 * Math.min(1, t + 0.2));
+      col.shadow.setDepth(depth - 1);
 
-      // Coin Collection Check
-      const inLane = (coin.lane === this.currentLane) || (this.powerups.magnet && Math.abs(curX - this.player.x) < 40);
-      if (inLane && Math.abs(coin.y - this.PLAYER_BASE_Y) < 35) {
-        coin.sprite.destroy();
-        coin.shadow.destroy();
-        this.activeCoins.splice(i, 1);
-        this.collectCoin();
+      // Collection Check
+      const inLane = (col.lane === this.currentLane) || (this.powerups.magnet && Math.abs(curX - this.player.x) < 42);
+      if (inLane && Math.abs(col.y - this.PLAYER_BASE_Y) < 36) {
+        col.sprite.destroy();
+        col.shadow.destroy();
+        this.activeCollectibles.splice(i, 1);
+        this.collectCollectible(col);
         continue;
       }
 
-      if (coin.y > this.CANVAS_HEIGHT + 50) {
-        coin.sprite.destroy();
-        coin.shadow.destroy();
-        this.activeCoins.splice(i, 1);
+      if (col.y > this.CANVAS_HEIGHT + 50) {
+        col.sprite.destroy();
+        col.shadow.destroy();
+        this.activeCollectibles.splice(i, 1);
       }
     }
 
@@ -873,34 +1004,71 @@ export default class GameScene extends Phaser.Scene {
   }
 
   // ────────────────────────────────────────────────────────────
-  // GAMEPLAY ACTIONS & DAMAGE
+  // GAMEPLAY ACTIONS & EDUCATIONAL ITEM COLLECTION
   // ────────────────────────────────────────────────────────────
 
-  collectCoin() {
+  collectCollectible(item) {
     sounds.playCoin();
     const multiplier = this.powerups.multiplier ? 2 : 1;
-    this.coins += 1 * multiplier;
-    this.score += 15 * multiplier;
 
-    // Small pop text
-    const pop = this.add.text(this.player.x, this.player.y - 30, `+${1 * multiplier}`, {
-      fontFamily: 'system-ui',
-      fontSize: '15px',
-      fontWeight: 'bold',
-      color: '#ffd166'
-    }).setOrigin(0.5).setDepth(150);
+    let pts = 15;
+    let earnedCoins = 1;
+    let popLabel = `+${15 * multiplier}`;
+    let popColor = '#ffd166';
+    let sparkleColor = 0xffd166;
+
+    if (item.itemType === 'aplus') {
+      pts = 50;
+      earnedCoins = 3;
+      popLabel = `A+ PERFECT! +${50 * multiplier}`;
+      popColor = '#00f5d4';
+      sparkleColor = 0x4cc9f0;
+      this.streak++;
+    } else if (item.itemType === 'book') {
+      pts = 25;
+      earnedCoins = 2;
+      popLabel = `+${25 * multiplier} PTS`;
+      popColor = '#ffd166';
+      sparkleColor = 0xffbe0b;
+    } else if (item.itemType === 'star') {
+      pts = 20;
+      earnedCoins = 1;
+      popLabel = `+${20 * multiplier}`;
+      popColor = '#ffea00';
+      sparkleColor = 0xffffff;
+    }
+
+    this.coins += earnedCoins * multiplier;
+    this.score += pts * multiplier;
+
+    // Visual Particle Burst
+    this.createSparkleBurst(this.player.x, this.player.y - 15, sparkleColor);
+
+    // HUD Scale Punch
+    this.punchHUD(this.scoreText);
+    this.punchHUD(this.coinsText);
+
+    // Floating text feedback pop
+    const pop = this.add.text(this.player.x, this.player.y - 30, popLabel, {
+      fontFamily: 'system-ui, -apple-system, sans-serif',
+      fontSize: item.itemType === 'aplus' ? '16px' : '14px',
+      fontWeight: '900',
+      color: popColor
+    }).setOrigin(0.5).setDepth(190);
 
     this.tweens.add({
       targets: pop,
-      y: pop.y - 25,
+      y: pop.y - 32,
       alpha: 0,
-      duration: 380,
+      duration: 450,
+      ease: 'Cubic.easeOut',
       onComplete: () => pop.destroy()
     });
   }
 
   collectPowerup(type) {
     sounds.playPowerup();
+    this.createSparkleBurst(this.player.x, this.player.y - 15, 0x00f5d4);
 
     if (type === 'pw_shield') {
       this.powerups.shield = true;
@@ -923,6 +1091,7 @@ export default class GameScene extends Phaser.Scene {
       });
     } else if (type === 'pw_heart') {
       this.lives = Math.min(3, this.lives + 1);
+      this.punchHUD(this.heartsText);
     }
 
     this.cameras.main.flash(200, 100, 200, 255);
@@ -932,6 +1101,7 @@ export default class GameScene extends Phaser.Scene {
     if (this.powerups.shield) {
       this.powerups.shield = false;
       this.shieldAura.setVisible(false);
+      this.createSparkleBurst(this.player.x, this.player.y, 0x00b4d8);
       this.cameras.main.flash(250, 0, 180, 255);
       return;
     }
@@ -940,6 +1110,11 @@ export default class GameScene extends Phaser.Scene {
     this.lives--;
     this.cameras.main.shake(220, 0.02);
     this.cameras.main.flash(220, 255, 0, 0);
+
+    // Red tint & damage reactions
+    this.shakeHearts();
+    this.player.setTexture('player_hit');
+    this.player.setTint(0xff3333);
 
     if (this.lives <= 0) {
       this.triggerGameOver();
@@ -956,6 +1131,8 @@ export default class GameScene extends Phaser.Scene {
       repeat: 6,
       onComplete: () => {
         this.player.alpha = 1;
+        this.player.clearTint();
+        this.player.setTexture(`player_run_${this.runFrame}`);
         this.isInvincible = false;
       }
     });
@@ -981,18 +1158,15 @@ export default class GameScene extends Phaser.Scene {
 
     this.qContainer = this.add.container(0, 0).setDepth(300);
 
-    // Backdrop
     const backdrop = this.add.rectangle(width / 2, height / 2, width, height, 0x070913, 0.88);
     this.qContainer.add(backdrop);
 
-    // Question Card Panel
     const panelWidth = 430;
     const panelHeight = 510;
     const panel = this.add.rectangle(width / 2, height / 2, panelWidth, panelHeight, 0x16182e)
       .setStrokeStyle(3, 0x4361ee);
     this.qContainer.add(panel);
 
-    // Badge Title
     const badge = this.add.text(width / 2, height / 2 - panelHeight / 2 + 30, '📚 LEARNING CHECKPOINT', {
       fontFamily: 'system-ui, sans-serif',
       fontSize: '15px',
@@ -1001,7 +1175,6 @@ export default class GameScene extends Phaser.Scene {
     }).setOrigin(0.5);
     this.qContainer.add(badge);
 
-    // Timer (15 seconds)
     let timeLeft = 15;
     const timerText = this.add.text(width / 2 + panelWidth / 2 - 38, height / 2 - panelHeight / 2 + 30, `⏱️ 15s`, {
       fontFamily: 'system-ui',
@@ -1023,7 +1196,6 @@ export default class GameScene extends Phaser.Scene {
       }
     });
 
-    // Question Text
     const qText = this.add.text(width / 2, height / 2 - panelHeight / 2 + 80, question.text, {
       fontFamily: 'system-ui',
       fontSize: '16px',
@@ -1034,7 +1206,6 @@ export default class GameScene extends Phaser.Scene {
     }).setOrigin(0.5, 0);
     this.qContainer.add(qText);
 
-    // Feedback & Explanation Texts
     const feedbackText = this.add.text(width / 2, height / 2 + panelHeight / 2 - 90, '', {
       fontFamily: 'system-ui',
       fontSize: '16px',
@@ -1052,7 +1223,6 @@ export default class GameScene extends Phaser.Scene {
     }).setOrigin(0.5);
     this.qContainer.add(explanationText);
 
-    // Answer Buttons
     const choiceBtns = [];
     const startY = height / 2 - panelHeight / 2 + 180;
     const btnHeight = 44;
@@ -1098,6 +1268,8 @@ export default class GameScene extends Phaser.Scene {
       this.score += 50;
       this.coins += 3;
       this.streak++;
+      this.punchHUD(this.scoreText);
+      this.punchHUD(this.coinsText);
 
       if (this.gameMode === 'timeAttack') {
         this.timeAttackRemaining += 6;
@@ -1144,14 +1316,13 @@ export default class GameScene extends Phaser.Scene {
   triggerGameOver(completedExam = false) {
     this.isGameOver = true;
 
-    // Clear active perspective elements
     this.activeObstacles.forEach(o => { o.sprite.destroy(); o.shadow.destroy(); });
-    this.activeCoins.forEach(c => { c.sprite.destroy(); c.shadow.destroy(); });
+    this.activeCollectibles.forEach(c => { c.sprite.destroy(); c.shadow.destroy(); });
     this.activePowerups.forEach(p => { p.sprite.destroy(); p.shadow.destroy(); });
     this.activeArches.forEach(a => { a.sprite.destroy(); a.shadow.destroy(); });
 
     this.activeObstacles = [];
-    this.activeCoins = [];
+    this.activeCollectibles = [];
     this.activePowerups = [];
     this.activeArches = [];
 

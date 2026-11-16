@@ -12,110 +12,452 @@ export default class BootScene extends Phaser.Scene {
 
   create() {
     this.createPlayerTextures();
+    this.createThemedObstacleTextures();
     this.createTrainTextures();
     this.createObstacleTextures();
     this.createCheckpointArchTexture();
+    this.createEducationalCollectibleTextures();
     this.createCoinTextures();
     this.createPowerupTextures();
+    this.createParticleTextures();
     this.createEnvironmentTextures();
 
-    console.log('[BootScene] Subway Surfers runner textures generated.');
+    console.log('[BootScene] Study Dash 2.5D visual assets generated.');
     this.scene.start('GameScene', window.__studyDashStartData || { mode: 'endless' });
   }
 
   createPlayerTextures() {
-    // 1. Running Frame 1 (Left stride) — 40x60
+    // Student Runner: Brown hair, glasses, brown backpack, white shirt, blue jeans, sneakers.
+    // 1. Running Frame 1 (Left stride forward) — 44x64
     const gRun1 = this.make.graphics({ x: 0, y: 0, add: false });
-    // Shadow
-    gRun1.fillStyle(0x000000, 0.3);
-    gRun1.fillEllipse(20, 56, 32, 8);
-    // Body / Hoodie (Sporty Blue)
-    gRun1.fillStyle(0x3a0ca3, 1);
-    gRun1.fillRoundedRect(8, 18, 24, 26, 6);
-    // Chest stripe (Neon Cyan)
-    gRun1.fillStyle(0x4cc9f0, 1);
-    gRun1.fillRect(10, 24, 20, 5);
-    // Head & Cap (Neon Red/Pink Cap)
-    gRun1.fillStyle(0xffbe0b, 1);
-    gRun1.fillCircle(20, 12, 10);
-    gRun1.fillStyle(0xf72585, 1);
-    gRun1.fillRoundedRect(10, 4, 20, 7, 3);
-    gRun1.fillRect(18, 7, 10, 4); // Visor
-    // Eye
-    gRun1.fillStyle(0x1a1a2e, 1);
-    gRun1.fillCircle(24, 12, 2);
-    // Sneakers (Left leg forward, right leg back)
+    // Left Leg forward, Right Leg back
+    gRun1.fillStyle(0x233d4d, 1); // Jeans
+    gRun1.fillRoundedRect(9, 40, 11, 16, 3);
+    gRun1.fillRoundedRect(24, 38, 11, 14, 3);
+    // Sneakers (White with red/black sole)
     gRun1.fillStyle(0xffffff, 1);
-    gRun1.fillRoundedRect(6, 44, 11, 9, 3);
-    gRun1.fillRoundedRect(22, 41, 11, 9, 3);
-    gRun1.fillStyle(0xf72585, 1);
-    gRun1.fillRect(6, 49, 11, 4); // Sole
-    gRun1.fillRect(22, 46, 11, 4);
-    gRun1.generateTexture('player_run_1', 40, 60);
+    gRun1.fillRoundedRect(7, 52, 13, 9, 3);
+    gRun1.fillRoundedRect(24, 48, 13, 9, 3);
+    gRun1.fillStyle(0xd90429, 1);
+    gRun1.fillRect(7, 58, 13, 3);
+    gRun1.fillRect(24, 54, 13, 3);
+    // Torso / White Polo
+    gRun1.fillStyle(0xf8f9fa, 1);
+    gRun1.fillRoundedRect(10, 20, 24, 23, 5);
+    // Leather Brown Backpack on Back (Central with straps)
+    gRun1.fillStyle(0x7f4f24, 1);
+    gRun1.fillRoundedRect(13, 22, 18, 20, 5);
+    gRun1.fillStyle(0x582f0e, 1); // Front pouch
+    gRun1.fillRoundedRect(15, 28, 14, 12, 3);
+    gRun1.fillStyle(0xffd166, 1); // Brass zipper
+    gRun1.fillRect(17, 28, 10, 2);
+    // Shoulder straps
+    gRun1.fillStyle(0x582f0e, 1);
+    gRun1.fillRect(11, 22, 3, 14);
+    gRun1.fillRect(30, 22, 3, 14);
+    // Head & Neck
+    gRun1.fillStyle(0xfec89a, 1); // Skin
+    gRun1.fillRect(19, 14, 6, 7);
+    gRun1.fillCircle(22, 13, 10);
+    // Brown Curly/Styled Hair
+    gRun1.fillStyle(0x5c3822, 1);
+    gRun1.fillCircle(22, 10, 11);
+    gRun1.fillCircle(17, 10, 6);
+    gRun1.fillCircle(27, 10, 6);
+    gRun1.fillCircle(22, 6, 6);
+    // Spectacles frame arms visible from side/angle
+    gRun1.fillStyle(0x1a1a2e, 1);
+    gRun1.fillRect(29, 12, 4, 2);
+    // Arms swinging (Left arm back, Right arm forward)
+    gRun1.fillStyle(0xf8f9fa, 1); // Shirt sleeves
+    gRun1.fillRoundedRect(6, 21, 6, 10, 2);
+    gRun1.fillRoundedRect(32, 22, 6, 10, 2);
+    gRun1.fillStyle(0xfec89a, 1); // Hands
+    gRun1.fillCircle(9, 32, 4);
+    gRun1.fillCircle(35, 33, 4);
+    gRun1.generateTexture('player_run_1', 44, 64);
     gRun1.destroy();
 
-    // 2. Running Frame 2 (Right stride) — 40x60
+    // 2. Running Frame 2 (Passing stride, slight squash & bounce) — 44x64
     const gRun2 = this.make.graphics({ x: 0, y: 0, add: false });
-    gRun2.fillStyle(0x000000, 0.3);
-    gRun2.fillEllipse(20, 56, 32, 8);
-    gRun2.fillStyle(0x3a0ca3, 1);
-    gRun2.fillRoundedRect(8, 17, 24, 26, 6);
-    gRun2.fillStyle(0x4cc9f0, 1);
-    gRun2.fillRect(10, 23, 20, 5);
-    gRun2.fillStyle(0xffbe0b, 1);
-    gRun2.fillCircle(20, 11, 10);
-    gRun2.fillStyle(0xf72585, 1);
-    gRun2.fillRoundedRect(10, 3, 20, 7, 3);
-    gRun2.fillRect(18, 6, 10, 4);
-    gRun2.fillStyle(0x1a1a2e, 1);
-    gRun2.fillCircle(24, 11, 2);
-    // Inverted legs
+    gRun2.fillStyle(0x233d4d, 1);
+    gRun2.fillRoundedRect(11, 41, 10, 15, 3);
+    gRun2.fillRoundedRect(23, 41, 10, 15, 3);
     gRun2.fillStyle(0xffffff, 1);
-    gRun2.fillRoundedRect(6, 41, 11, 9, 3);
-    gRun2.fillRoundedRect(22, 44, 11, 9, 3);
-    gRun2.fillStyle(0xf72585, 1);
-    gRun2.fillRect(6, 46, 11, 4);
-    gRun2.fillRect(22, 49, 11, 4);
-    gRun2.generateTexture('player_run_2', 40, 60);
+    gRun2.fillRoundedRect(10, 53, 12, 8, 3);
+    gRun2.fillRoundedRect(22, 53, 12, 8, 3);
+    gRun2.fillStyle(0xd90429, 1);
+    gRun2.fillRect(10, 58, 12, 3);
+    gRun2.fillRect(22, 58, 12, 3);
+    gRun2.fillStyle(0xf8f9fa, 1);
+    gRun2.fillRoundedRect(10, 21, 24, 23, 5);
+    gRun2.fillStyle(0x7f4f24, 1);
+    gRun2.fillRoundedRect(13, 23, 18, 20, 5);
+    gRun2.fillStyle(0x582f0e, 1);
+    gRun2.fillRoundedRect(15, 29, 14, 12, 3);
+    gRun2.fillStyle(0xffd166, 1);
+    gRun2.fillRect(17, 29, 10, 2);
+    gRun2.fillStyle(0x582f0e, 1);
+    gRun2.fillRect(11, 23, 3, 14);
+    gRun2.fillRect(30, 23, 3, 14);
+    gRun2.fillStyle(0xfec89a, 1);
+    gRun2.fillRect(19, 15, 6, 7);
+    gRun2.fillCircle(22, 14, 10);
+    gRun2.fillStyle(0x5c3822, 1);
+    gRun2.fillCircle(22, 11, 11);
+    gRun2.fillCircle(17, 11, 6);
+    gRun2.fillCircle(27, 11, 6);
+    gRun2.fillCircle(22, 7, 6);
+    gRun2.fillStyle(0x1a1a2e, 1);
+    gRun2.fillRect(29, 13, 4, 2);
+    gRun2.fillStyle(0xf8f9fa, 1);
+    gRun2.fillRoundedRect(7, 22, 6, 10, 2);
+    gRun2.fillRoundedRect(31, 22, 6, 10, 2);
+    gRun2.fillStyle(0xfec89a, 1);
+    gRun2.fillCircle(10, 33, 4);
+    gRun2.fillCircle(34, 33, 4);
+    gRun2.generateTexture('player_run_2', 44, 64);
     gRun2.destroy();
 
-    // 3. Sliding Player (Squashed low to slide under overhead barriers) — 56x32
+    // 3. Running Frame 3 (Right stride forward) — 44x64
+    const gRun3 = this.make.graphics({ x: 0, y: 0, add: false });
+    // Inverted legs: Right forward, Left back
+    gRun3.fillStyle(0x233d4d, 1);
+    gRun3.fillRoundedRect(9, 38, 11, 14, 3);
+    gRun3.fillRoundedRect(24, 40, 11, 16, 3);
+    gRun3.fillStyle(0xffffff, 1);
+    gRun3.fillRoundedRect(7, 48, 13, 9, 3);
+    gRun3.fillRoundedRect(24, 52, 13, 9, 3);
+    gRun3.fillStyle(0xd90429, 1);
+    gRun3.fillRect(7, 54, 13, 3);
+    gRun3.fillRect(24, 58, 13, 3);
+    gRun3.fillStyle(0xf8f9fa, 1);
+    gRun3.fillRoundedRect(10, 20, 24, 23, 5);
+    gRun3.fillStyle(0x7f4f24, 1);
+    gRun3.fillRoundedRect(13, 22, 18, 20, 5);
+    gRun3.fillStyle(0x582f0e, 1);
+    gRun3.fillRoundedRect(15, 28, 14, 12, 3);
+    gRun3.fillStyle(0xffd166, 1);
+    gRun3.fillRect(17, 28, 10, 2);
+    gRun3.fillStyle(0x582f0e, 1);
+    gRun3.fillRect(11, 22, 3, 14);
+    gRun3.fillRect(30, 22, 3, 14);
+    gRun3.fillStyle(0xfec89a, 1);
+    gRun3.fillRect(19, 14, 6, 7);
+    gRun3.fillCircle(22, 13, 10);
+    gRun3.fillStyle(0x5c3822, 1);
+    gRun3.fillCircle(22, 10, 11);
+    gRun3.fillCircle(17, 10, 6);
+    gRun3.fillCircle(27, 10, 6);
+    gRun3.fillCircle(22, 6, 6);
+    gRun3.fillStyle(0x1a1a2e, 1);
+    gRun3.fillRect(29, 12, 4, 2);
+    // Inverted arms
+    gRun3.fillStyle(0xf8f9fa, 1);
+    gRun3.fillRoundedRect(6, 22, 6, 10, 2);
+    gRun3.fillRoundedRect(32, 21, 6, 10, 2);
+    gRun3.fillStyle(0xfec89a, 1);
+    gRun3.fillCircle(9, 33, 4);
+    gRun3.fillCircle(35, 32, 4);
+    gRun3.generateTexture('player_run_3', 44, 64);
+    gRun3.destroy();
+
+    // 4. Running Frame 4 (Passing stride 2) — 44x64
+    const gRun4 = this.make.graphics({ x: 0, y: 0, add: false });
+    gRun4.fillStyle(0x233d4d, 1);
+    gRun4.fillRoundedRect(10, 40, 10, 15, 3);
+    gRun4.fillRoundedRect(24, 40, 10, 15, 3);
+    gRun4.fillStyle(0xffffff, 1);
+    gRun4.fillRoundedRect(9, 52, 12, 8, 3);
+    gRun4.fillRoundedRect(23, 52, 12, 8, 3);
+    gRun4.fillStyle(0xd90429, 1);
+    gRun4.fillRect(9, 57, 12, 3);
+    gRun4.fillRect(23, 57, 12, 3);
+    gRun4.fillStyle(0xf8f9fa, 1);
+    gRun4.fillRoundedRect(10, 20, 24, 23, 5);
+    gRun4.fillStyle(0x7f4f24, 1);
+    gRun4.fillRoundedRect(13, 22, 18, 20, 5);
+    gRun4.fillStyle(0x582f0e, 1);
+    gRun4.fillRoundedRect(15, 28, 14, 12, 3);
+    gRun4.fillStyle(0xffd166, 1);
+    gRun4.fillRect(17, 28, 10, 2);
+    gRun4.fillStyle(0x582f0e, 1);
+    gRun4.fillRect(11, 22, 3, 14);
+    gRun4.fillRect(30, 22, 3, 14);
+    gRun4.fillStyle(0xfec89a, 1);
+    gRun4.fillRect(19, 14, 6, 7);
+    gRun4.fillCircle(22, 13, 10);
+    gRun4.fillStyle(0x5c3822, 1);
+    gRun4.fillCircle(22, 10, 11);
+    gRun4.fillCircle(17, 10, 6);
+    gRun4.fillCircle(27, 10, 6);
+    gRun4.fillCircle(22, 6, 6);
+    gRun4.fillStyle(0x1a1a2e, 1);
+    gRun4.fillRect(29, 12, 4, 2);
+    gRun4.fillStyle(0xf8f9fa, 1);
+    gRun4.fillRoundedRect(7, 21, 6, 10, 2);
+    gRun4.fillRoundedRect(31, 21, 6, 10, 2);
+    gRun4.fillStyle(0xfec89a, 1);
+    gRun4.fillCircle(10, 32, 4);
+    gRun4.fillCircle(34, 32, 4);
+    gRun4.generateTexture('player_run_4', 44, 64);
+    gRun4.destroy();
+
+    // 5. Sliding Player (Low athletic slide) — 58x34
     const gSlide = this.make.graphics({ x: 0, y: 0, add: false });
-    gSlide.fillStyle(0x000000, 0.35);
-    gSlide.fillEllipse(28, 28, 52, 8);
-    // Torso sliding horizontal
-    gSlide.fillStyle(0x3a0ca3, 1);
-    gSlide.fillRoundedRect(10, 10, 38, 15, 5);
-    gSlide.fillStyle(0x4cc9f0, 1);
-    gSlide.fillRect(12, 14, 34, 4);
-    // Head on front
-    gSlide.fillStyle(0xffbe0b, 1);
-    gSlide.fillCircle(45, 16, 8);
-    gSlide.fillStyle(0xf72585, 1);
-    gSlide.fillRoundedRect(40, 9, 12, 6, 2);
-    // Sneakers trailing
+    // Extended jeans horizontal
+    gSlide.fillStyle(0x233d4d, 1);
+    gSlide.fillRoundedRect(6, 18, 38, 12, 4);
+    // Sneakers leading out front
     gSlide.fillStyle(0xffffff, 1);
-    gSlide.fillRoundedRect(2, 14, 10, 8, 2);
-    gSlide.generateTexture('player_slide', 56, 32);
+    gSlide.fillRoundedRect(40, 16, 15, 10, 3);
+    gSlide.fillStyle(0xd90429, 1);
+    gSlide.fillRect(40, 23, 15, 3);
+    // Upper body reclined low
+    gSlide.fillStyle(0xf8f9fa, 1);
+    gSlide.fillRoundedRect(10, 10, 24, 16, 4);
+    // Backpack resting low
+    gSlide.fillStyle(0x7f4f24, 1);
+    gSlide.fillRoundedRect(6, 8, 16, 16, 4);
+    // Head low
+    gSlide.fillStyle(0xfec89a, 1);
+    gSlide.fillCircle(28, 8, 8);
+    gSlide.fillStyle(0x5c3822, 1);
+    gSlide.fillCircle(27, 6, 8);
+    gSlide.fillStyle(0x1a1a2e, 1);
+    gSlide.fillRect(32, 6, 4, 2);
+    gSlide.generateTexture('player_slide', 58, 34);
     gSlide.destroy();
 
-    // 4. Jumping Player (Arms up, knees bent) — 40x60
+    // 6. Jumping Player (Airborne with tucked knees) — 44x64
     const gJump = this.make.graphics({ x: 0, y: 0, add: false });
-    gJump.fillStyle(0x3a0ca3, 1);
-    gJump.fillRoundedRect(8, 14, 24, 26, 6);
-    gJump.fillStyle(0x4cc9f0, 1);
-    gJump.fillRect(10, 20, 20, 5);
-    gJump.fillStyle(0xffbe0b, 1);
-    gJump.fillCircle(20, 8, 10);
-    gJump.fillStyle(0xf72585, 1);
-    gJump.fillRoundedRect(10, 1, 20, 7, 3);
-    gJump.fillRect(18, 4, 10, 4);
-    // Extended legs
+    // Tucked legs
+    gJump.fillStyle(0x233d4d, 1);
+    gJump.fillRoundedRect(8, 32, 12, 14, 4);
+    gJump.fillRoundedRect(24, 32, 12, 14, 4);
     gJump.fillStyle(0xffffff, 1);
-    gJump.fillRoundedRect(4, 38, 11, 12, 3);
-    gJump.fillRoundedRect(24, 38, 11, 12, 3);
-    gJump.generateTexture('player_jump', 40, 60);
+    gJump.fillRoundedRect(8, 44, 12, 8, 3);
+    gJump.fillRoundedRect(24, 44, 12, 8, 3);
+    gJump.fillStyle(0xd90429, 1);
+    gJump.fillRect(8, 49, 12, 3);
+    gJump.fillRect(24, 49, 12, 3);
+    // Torso & backpack lifted
+    gJump.fillStyle(0xf8f9fa, 1);
+    gJump.fillRoundedRect(10, 14, 24, 22, 5);
+    gJump.fillStyle(0x7f4f24, 1);
+    gJump.fillRoundedRect(13, 15, 18, 19, 5);
+    gJump.fillStyle(0x582f0e, 1);
+    gJump.fillRoundedRect(15, 20, 14, 11, 3);
+    // Head
+    gJump.fillStyle(0xfec89a, 1);
+    gJump.fillCircle(22, 9, 9);
+    gJump.fillStyle(0x5c3822, 1);
+    gJump.fillCircle(22, 7, 10);
+    gJump.fillCircle(17, 7, 5);
+    gJump.fillCircle(27, 7, 5);
+    // Arms spread for flight balance
+    gJump.fillStyle(0xf8f9fa, 1);
+    gJump.fillRoundedRect(3, 14, 8, 12, 3);
+    gJump.fillRoundedRect(33, 14, 8, 12, 3);
+    gJump.fillStyle(0xfec89a, 1);
+    gJump.fillCircle(7, 26, 4);
+    gJump.fillCircle(37, 26, 4);
+    gJump.generateTexture('player_jump', 44, 64);
     gJump.destroy();
+
+    // 7. Stumble / Hit Player Frame — 44x64
+    const gHit = this.make.graphics({ x: 0, y: 0, add: false });
+    gHit.fillStyle(0x233d4d, 1);
+    gHit.fillRoundedRect(7, 42, 12, 14, 3);
+    gHit.fillRoundedRect(25, 42, 12, 14, 3);
+    gHit.fillStyle(0xffffff, 1);
+    gHit.fillRoundedRect(6, 53, 13, 8, 3);
+    gHit.fillRoundedRect(25, 53, 13, 8, 3);
+    gHit.fillStyle(0xf8f9fa, 1);
+    gHit.fillRoundedRect(10, 20, 24, 22, 5);
+    gHit.fillStyle(0x7f4f24, 1);
+    gHit.fillRoundedRect(13, 21, 18, 19, 5);
+    gHit.fillStyle(0xfec89a, 1);
+    gHit.fillCircle(22, 12, 9);
+    gHit.fillStyle(0x5c3822, 1);
+    gHit.fillCircle(22, 10, 10);
+    // Flailing arms
+    gHit.fillStyle(0xfec89a, 1);
+    gHit.fillCircle(5, 16, 5);
+    gHit.fillCircle(39, 16, 5);
+    // Dizzy stars
+    gHit.fillStyle(0xffbe0b, 1);
+    gHit.fillCircle(14, 4, 3);
+    gHit.fillCircle(30, 4, 3);
+    gHit.generateTexture('player_hit', 44, 64);
+    gHit.destroy();
+  }
+
+  createThemedObstacleTextures() {
+    // 1. Stacked Textbooks (High Ground Obstacle — JUMP or DODGE) — 66x54
+    const gStack = this.make.graphics({ x: 0, y: 0, add: false });
+    // Book 1 (Bottom, thick Navy Blue)
+    gStack.fillStyle(0x1d3557, 1);
+    gStack.fillRoundedRect(4, 38, 58, 14, 3);
+    gStack.fillStyle(0xf1faee, 1); // White page edges
+    gStack.fillRect(10, 41, 50, 8);
+    gStack.fillStyle(0x1d3557, 1);
+    gStack.fillRect(4, 38, 7, 14); // Spine
+    gStack.fillStyle(0xffd166, 1); // Gold foil stripe
+    gStack.fillRect(5, 44, 4, 2);
+
+    // Book 2 (Crimson Medical Encyclopedia)
+    gStack.fillStyle(0x9b2226, 1);
+    gStack.fillRoundedRect(7, 26, 52, 13, 3);
+    gStack.fillStyle(0xffeedd, 1);
+    gStack.fillRect(12, 29, 45, 7);
+    gStack.fillStyle(0x9b2226, 1);
+    gStack.fillRect(7, 26, 6, 13);
+    // Red bookmark ribbon hanging down
+    gStack.fillStyle(0xe63946, 1);
+    gStack.fillRect(48, 36, 4, 10);
+
+    // Book 3 (Forest Green Science Volume)
+    gStack.fillStyle(0x2d6a4f, 1);
+    gStack.fillRoundedRect(9, 15, 48, 12, 3);
+    gStack.fillStyle(0xf1faee, 1);
+    gStack.fillRect(14, 18, 41, 6);
+    gStack.fillStyle(0x2d6a4f, 1);
+    gStack.fillRect(9, 15, 6, 12);
+
+    // Book 4 (Top, Open Violet Literature Book)
+    gStack.fillStyle(0x5a189a, 1);
+    gStack.fillRoundedRect(14, 5, 38, 11, 3);
+    gStack.fillStyle(0xffeedd, 1);
+    gStack.fillRect(18, 7, 32, 6);
+    gStack.fillStyle(0x5a189a, 1);
+    gStack.fillRect(14, 5, 5, 11);
+    gStack.fillStyle(0xffbe0b, 1);
+    gStack.fillCircle(33, 9, 2);
+    gStack.generateTexture('obs_bookstack', 66, 54);
+    gStack.destroy();
+
+    // 2. Heavy Library Book Cart (MUST DODGE LEFT/RIGHT — Cannot Jump or Slide) — 76x104
+    const gCart = this.make.graphics({ x: 0, y: 0, add: false });
+    // Steel Cart Frame
+    gCart.fillStyle(0x2b2d42, 1);
+    gCart.fillRoundedRect(4, 10, 68, 86, 6);
+    gCart.fillStyle(0x4a4e69, 1);
+    gCart.fillRect(8, 14, 60, 78);
+
+    // Left & Right Handle Rails
+    gCart.fillStyle(0x8d99ae, 1);
+    gCart.fillRect(2, 4, 6, 80);
+    gCart.fillRect(68, 4, 6, 80);
+    gCart.fillRect(2, 4, 12, 6);
+    gCart.fillRect(62, 4, 12, 6);
+
+    // Top Shelf Books
+    const colors = [0xd90429, 0x0077b6, 0x2d6a4f, 0xffb703, 0x7209b7, 0xf72585];
+    let bx = 11;
+    let ci = 0;
+    while (bx < 64) {
+      const bw = Phaser.Math.Between(5, 8);
+      const bh = Phaser.Math.Between(24, 30);
+      gCart.fillStyle(colors[ci % colors.length], 1);
+      gCart.fillRect(bx, 48 - bh, bw, bh);
+      gCart.fillStyle(0xffffff, 0.3);
+      gCart.fillRect(bx + 1, 48 - bh, 1, bh);
+      bx += bw + 1;
+      ci++;
+    }
+    // Shelf divider bar
+    gCart.fillStyle(0x2b2d42, 1);
+    gCart.fillRect(6, 48, 64, 5);
+
+    // Bottom Shelf Books
+    bx = 11;
+    while (bx < 64) {
+      const bw = Phaser.Math.Between(5, 8);
+      const bh = Phaser.Math.Between(24, 30);
+      gCart.fillStyle(colors[ci % colors.length], 1);
+      gCart.fillRect(bx, 84 - bh, bw, bh);
+      gCart.fillStyle(0xffffff, 0.3);
+      gCart.fillRect(bx + 1, 84 - bh, 1, bh);
+      bx += bw + 1;
+      ci++;
+    }
+
+    // Hazard warning bumper bar at base
+    gCart.fillStyle(0xffbe0b, 1);
+    gCart.fillRect(6, 86, 64, 8);
+    gCart.fillStyle(0x111111, 1);
+    for (let x = 8; x < 68; x += 12) {
+      gCart.fillRect(x, 86, 6, 8);
+    }
+
+    // Caster Wheels
+    gCart.fillStyle(0x1a1a2e, 1);
+    gCart.fillCircle(14, 98, 6);
+    gCart.fillCircle(62, 98, 6);
+    gCart.fillStyle(0x8d99ae, 1);
+    gCart.fillCircle(14, 98, 3);
+    gCart.fillCircle(62, 98, 3);
+    gCart.generateTexture('obs_cart', 76, 104);
+    gCart.destroy();
+
+    // 3. Overhead Library Caution Banner (Low Clearance — MUST SLIDE or DODGE) — 86x46
+    const gLowBanner = this.make.graphics({ x: 0, y: 0, add: false });
+    // Hanging metal suspension rods
+    gLowBanner.fillStyle(0x6c757d, 1);
+    gLowBanner.fillRect(6, 0, 4, 46);
+    gLowBanner.fillRect(76, 0, 4, 46);
+    // Overhead clearance bar
+    gLowBanner.fillStyle(0x1f2438, 1);
+    gLowBanner.fillRoundedRect(0, 4, 86, 20, 4);
+    // Yellow hazard stripes
+    gLowBanner.fillStyle(0xffbe0b, 1);
+    for (let x = 4; x < 82; x += 14) {
+      gLowBanner.fillTriangle(x, 4, x + 7, 4, x + 12, 24);
+      gLowBanner.fillTriangle(x, 4, x + 5, 24, x + 12, 24);
+    }
+    // "SLIDE" label backing & text bar
+    gLowBanner.fillStyle(0xd90429, 1);
+    gLowBanner.fillRoundedRect(22, 7, 42, 14, 3);
+    gLowBanner.fillStyle(0xffffff, 1);
+    gLowBanner.fillRect(26, 13, 34, 3); // White indicator bar
+    gLowBanner.generateTexture('obs_low_sign', 86, 46);
+    gLowBanner.destroy();
+
+    // 4. Yellow Caution "WET FLOOR" Sign (Ground Obstacle — JUMP or DODGE) — 38x44
+    const gWet = this.make.graphics({ x: 0, y: 0, add: false });
+    // Triangular pyramid sign
+    gWet.fillStyle(0xffbe0b, 1);
+    gWet.fillTriangle(19, 4, 4, 40, 34, 40);
+    gWet.fillStyle(0xfb8500, 1);
+    gWet.fillRect(4, 38, 30, 4);
+    // Warning symbol: Black triangle with slipping figure
+    gWet.lineStyle(2, 0x111111, 1);
+    gWet.strokeTriangle(19, 14, 10, 32, 28, 32);
+    gWet.fillStyle(0x111111, 1);
+    gWet.fillCircle(19, 21, 2); // Head
+    gWet.fillRect(17, 24, 4, 6); // Torso slipping
+    gWet.generateTexture('obs_wetfloor', 38, 44);
+    gWet.destroy();
+
+    // 5. Classroom Study Desk (Ground Obstacle — JUMP or DODGE) — 70x50
+    const gDesk = this.make.graphics({ x: 0, y: 0, add: false });
+    // Wooden desktop
+    gDesk.fillStyle(0x7f4f24, 1);
+    gDesk.fillRoundedRect(4, 16, 62, 12, 3);
+    gDesk.fillStyle(0x936639, 1);
+    gDesk.fillRect(6, 18, 58, 4);
+    // Steel legs
+    gDesk.fillStyle(0x495057, 1);
+    gDesk.fillRect(10, 28, 5, 22);
+    gDesk.fillRect(55, 28, 5, 22);
+    // Laptop on desk
+    gDesk.fillStyle(0xced4da, 1);
+    gDesk.fillRoundedRect(22, 8, 26, 10, 2);
+    gDesk.fillStyle(0x4cc9f0, 1); // Glowing screen
+    gDesk.fillRect(24, 10, 22, 6);
+    gDesk.generateTexture('obs_desk', 70, 50);
+    gDesk.destroy();
   }
 
   createTrainTextures() {
@@ -264,6 +606,112 @@ export default class BootScene extends Phaser.Scene {
     gArch.fillRect(234, 50, 14, 30);
     gArch.generateTexture('checkpoint_arch', 260, 80);
     gArch.destroy();
+  }
+
+  createEducationalCollectibleTextures() {
+    // 1. A+ Exam Certificate Paper (Matching reference mockup!) — 38x46
+    const gAplus = this.make.graphics({ x: 0, y: 0, add: false });
+    // Outer golden radiant aura
+    gAplus.fillStyle(0xffbe0b, 0.35);
+    gAplus.fillRoundedRect(1, 1, 36, 44, 6);
+    gAplus.fillStyle(0xffd166, 0.65);
+    gAplus.fillRoundedRect(3, 3, 32, 40, 4);
+
+    // Parchment Certificate Paper Body
+    gAplus.fillStyle(0xfffdf0, 1);
+    gAplus.fillRoundedRect(5, 5, 28, 36, 3);
+    gAplus.lineStyle(1.5, 0xd4a373, 1);
+    gAplus.strokeRoundedRect(7, 7, 24, 32, 2);
+
+    // Bold Red "A+" Stamp at top
+    // Letter 'A'
+    gAplus.fillStyle(0xd90429, 1);
+    gAplus.fillRect(12, 11, 3, 9); // Left stroke
+    gAplus.fillRect(18, 11, 3, 9); // Right stroke
+    gAplus.fillRect(13, 11, 7, 3); // Top bar
+    gAplus.fillRect(13, 15, 7, 2); // Crossbar
+    // Plus sign '+'
+    gAplus.fillRect(22, 14, 5, 2); // Horizontal
+    gAplus.fillRect(23.5, 12.5, 2, 5); // Vertical
+
+    // Certificate Coursework Lines
+    gAplus.fillStyle(0xa0aab2, 1);
+    gAplus.fillRect(9, 23, 20, 1.5);
+    gAplus.fillRect(9, 26, 16, 1.5);
+    gAplus.fillRect(9, 29, 20, 1.5);
+
+    // Golden Rosette Medal Ribbon at bottom
+    gAplus.fillStyle(0xd90429, 1);
+    gAplus.fillTriangle(15, 34, 18, 40, 19, 34); // Ribbon tails
+    gAplus.fillTriangle(23, 34, 20, 40, 19, 34);
+    gAplus.fillStyle(0xffb703, 1);
+    gAplus.fillCircle(19, 34, 4); // Medal rosette
+    gAplus.fillStyle(0xffffff, 1);
+    gAplus.fillCircle(19, 34, 1.5);
+    gAplus.generateTexture('col_aplus', 38, 46);
+    gAplus.destroy();
+
+    // 2. Floating Golden Knowledge Book — 34x36
+    const gBook = this.make.graphics({ x: 0, y: 0, add: false });
+    // Book Cover (Royal Blue & Gold trim)
+    gBook.fillStyle(0x0077b6, 1);
+    gBook.fillRoundedRect(3, 4, 28, 28, 4);
+    gBook.fillStyle(0xffd166, 1); // Gold spine & corner trims
+    gBook.fillRect(3, 4, 6, 28);
+    gBook.lineStyle(1.5, 0xffd166, 1);
+    gBook.strokeRoundedRect(5, 6, 24, 24, 2);
+    // White page block
+    gBook.fillStyle(0xf8f9fa, 1);
+    gBook.fillRect(28, 6, 3, 24);
+    // Gold Star Emblem on Cover
+    gBook.fillStyle(0xffbe0b, 1);
+    gBook.fillCircle(18, 18, 5);
+    gBook.fillStyle(0xffffff, 1);
+    gBook.fillCircle(18, 18, 2);
+    // Satin red bookmark ribbon dangling below
+    gBook.fillStyle(0xd90429, 1);
+    gBook.fillRect(16, 30, 4, 5);
+    gBook.generateTexture('col_book', 34, 36);
+    gBook.destroy();
+
+    // 3. 5-Point Knowledge Star — 32x32
+    const gStar = this.make.graphics({ x: 0, y: 0, add: false });
+    gStar.fillStyle(0xffb703, 0.4);
+    gStar.fillCircle(16, 16, 15);
+    gStar.fillStyle(0xffd166, 1);
+    gStar.fillCircle(16, 16, 11);
+    gStar.fillStyle(0xffffff, 1);
+    // 4 diamond star points
+    gStar.fillTriangle(16, 2, 13, 16, 19, 16);
+    gStar.fillTriangle(16, 30, 13, 16, 19, 16);
+    gStar.fillTriangle(2, 16, 16, 13, 16, 19);
+    gStar.fillTriangle(30, 16, 16, 13, 16, 19);
+    gStar.fillCircle(16, 16, 4);
+    gStar.generateTexture('col_star', 32, 32);
+    gStar.destroy();
+  }
+
+  createParticleTextures() {
+    // 1. Star Sparkle Particle — 14x14
+    const gSpark = this.make.graphics({ x: 0, y: 0, add: false });
+    gSpark.fillStyle(0xffd166, 1);
+    gSpark.fillTriangle(7, 0, 5, 7, 9, 7);
+    gSpark.fillTriangle(7, 14, 5, 7, 9, 7);
+    gSpark.fillTriangle(0, 7, 7, 5, 7, 9);
+    gSpark.fillTriangle(14, 7, 7, 5, 7, 9);
+    gSpark.fillStyle(0xffffff, 1);
+    gSpark.fillCircle(7, 7, 2);
+    gSpark.generateTexture('part_sparkle', 14, 14);
+    gSpark.destroy();
+
+    // 2. Dust Puff Particle — 16x16
+    const gDust = this.make.graphics({ x: 0, y: 0, add: false });
+    gDust.fillStyle(0xffffff, 0.65);
+    gDust.fillCircle(8, 8, 7);
+    gDust.fillStyle(0xe9ecef, 0.85);
+    gDust.fillCircle(8, 8, 4);
+    gDust.generateTexture('part_dust', 16, 16);
+    gDust.destroy();
   }
 
   createCoinTextures() {
