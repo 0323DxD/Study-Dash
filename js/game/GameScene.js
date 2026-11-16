@@ -6,8 +6,9 @@
  * - State-controlled delta-time player animations (Run 4-frame, Jump, Slide, Lane Tilt, Landing Squash, Hit Stumble)
  * - Themed educational obstacles (Stacked Textbooks, Study Desks, Low Clearance Sign, Heavy Library Book Cart, Wet Floor Cones)
  * - Educational collectibles (A+ Certificate Papers, Golden Knowledge Books, Knowledge Stars, Study Medals)
+ * - IN-WORLD TRIVIA GATES: Suspends obstacles, slides Giant Question Banner, spawns 3 physical answer gates in perspective across Left/Center/Right lanes, with real-time lane collision & feedback!
  * - Floating & shimmering collectible physics, particle sparkle bursts, and landing dust puffs
- * - Dynamic HUD punch animations and integrated Question Checkpoints
+ * - Dynamic HUD punch animations and mode support
  */
 
 import TouchControls from './TouchControls.js';
@@ -74,10 +75,16 @@ export default class GameScene extends Phaser.Scene {
     this.examGoal = 10;
     this.examAnswered = 0;
 
-    // Checkpoint & Game states
-    this.isQuestionActive = false;
+    // In-World Trivia Gates State
+    this.isTriviaPhase = false;
+    this.triviaResolved = false;
+    this.triviaGates = [];
+    this.triviaProps = [];
+    this.triviaQuestion = null;
+    this.questionBannerContainer = null;
+    this.nextQuestionDistance = 140; // First trivia gate at ~140m
+
     this.isGameOver = false;
-    this.nextQuestionDistance = 120; // Checkpoint every ~180-240m
 
     // Environment animation trackers
     this.floorOffset = 0;
@@ -177,7 +184,7 @@ export default class GameScene extends Phaser.Scene {
       this.timeAttackTimer = this.time.addEvent({
         delay: 1000,
         callback: () => {
-          if (!this.isQuestionActive && !this.isGameOver) {
+          if (!this.isGameOver) {
             this.timeAttackRemaining--;
             if (this.timeAttackRemaining <= 0) {
               this.triggerGameOver();
@@ -199,19 +206,15 @@ export default class GameScene extends Phaser.Scene {
   // ────────────────────────────────────────────────────────────
 
   createEnvironment(width, height) {
-    // Upper Ceiling Background
     this.add.rectangle(width / 2, height / 2, width, height, 0x0a0c16).setDepth(0);
     this.add.rectangle(width / 2, this.HORIZON_Y / 2, width, this.HORIZON_Y, 0x111322).setDepth(1);
 
-    // Horizon Double Doors & Lockers ("STUDY DASH RUN" Header)
     this.horizonDoor = this.add.image(this.VANISHING_X, this.HORIZON_Y - 40, 'lib_horizon_door')
       .setOrigin(0.5, 0.5)
       .setDepth(2);
 
-    // Dynamic Floor Graphics
     this.floorGraphics = this.add.graphics().setDepth(3);
 
-    // Bookshelf Corridor Walls (Scrolling Perspective Segments)
     this.shelfSegments = [];
     const numShelves = 5;
     for (let i = 0; i < numShelves; i++) {
@@ -221,7 +224,6 @@ export default class GameScene extends Phaser.Scene {
       this.shelfSegments.push({ p, left: leftShelf, right: rightShelf });
     }
 
-    // Overhead Ceiling Archways with Pendant Lamps
     this.overheadArches = [];
     for (let i = 0; i < 2; i++) {
       const arch = this.add.image(this.VANISHING_X, 0, 'lib_ceiling_arch')
@@ -259,7 +261,6 @@ export default class GameScene extends Phaser.Scene {
     g.closePath();
     g.fillPath();
 
-    // Baseboard trim lines
     g.lineStyle(3, 0x422819, 0.85);
     g.strokeLineShape(new Phaser.Geom.Line(topLeftX, hy, botLeftX, h));
     g.strokeLineShape(new Phaser.Geom.Line(topRightX, hy, botRightX, h));
@@ -417,14 +418,13 @@ export default class GameScene extends Phaser.Scene {
   }
 
   changeLane(direction) {
-    if (this.isGameOver || this.isQuestionActive) return;
+    if (this.isGameOver) return;
     const newLane = Phaser.Math.Clamp(this.currentLane + direction, 0, 2);
     if (newLane === this.currentLane) return;
 
     this.currentLane = newLane;
     const targetX = this.getLaneX(this.currentLane, this.PLAYER_BASE_Y);
 
-    // Lateral Tilt: Player leans dynamically into the turn
     const tilt = direction < 0 ? -0.16 : 0.16;
     this.tweens.add({
       targets: this.player,
@@ -435,7 +435,6 @@ export default class GameScene extends Phaser.Scene {
       onComplete: () => { this.player.rotation = 0; }
     });
 
-    // Snappy lane switch tween
     this.tweens.add({
       targets: [this.player, this.playerShadow, this.shieldAura, this.magnetAura],
       x: targetX,
@@ -445,13 +444,12 @@ export default class GameScene extends Phaser.Scene {
   }
 
   jump() {
-    if (this.isGameOver || this.isQuestionActive || this.isJumping) return;
+    if (this.isGameOver || this.isJumping) return;
     this.isJumping = true;
     sounds.playJump();
 
     this.player.setTexture('player_jump');
 
-    // Arc jump — player rises, shadow stays on the floor and contracts
     this.tweens.add({
       targets: this.player,
       y: this.PLAYER_BASE_Y - 95,
@@ -462,7 +460,6 @@ export default class GameScene extends Phaser.Scene {
         this.isJumping = false;
         this.player.y = this.PLAYER_BASE_Y;
 
-        // Landing Impact: Emit floor dust puffs and squash/stretch recovery
         this.createDustPuff(this.player.x, this.PLAYER_BASE_Y + 24);
         this.isLanding = true;
 
@@ -484,7 +481,6 @@ export default class GameScene extends Phaser.Scene {
       }
     });
 
-    // Shadow scaling & fading during jump
     this.tweens.add({
       targets: this.playerShadow,
       scaleX: 0.58,
@@ -496,9 +492,8 @@ export default class GameScene extends Phaser.Scene {
   }
 
   slide() {
-    if (this.isGameOver || this.isQuestionActive) return;
+    if (this.isGameOver) return;
 
-    // Fast-drop if in air
     if (this.isJumping) {
       this.tweens.killTweensOf(this.player);
       this.isJumping = false;
@@ -514,7 +509,6 @@ export default class GameScene extends Phaser.Scene {
     this.player.setTexture('player_slide');
     this.player.y = this.PLAYER_BASE_Y + 12;
 
-    // Emit slide friction dust puffs behind sneakers
     this.createDustPuff(this.player.x - 14, this.PLAYER_BASE_Y + 22);
     this.createDustPuff(this.player.x + 14, this.PLAYER_BASE_Y + 22);
 
@@ -532,12 +526,7 @@ export default class GameScene extends Phaser.Scene {
   // ────────────────────────────────────────────────────────────
 
   spawnTraffic() {
-    if (this.isGameOver || this.isQuestionActive) return;
-
-    if (this.distance >= this.nextQuestionDistance - 25 && this.activeArches.length === 0) {
-      this.spawnCheckpointArch();
-      return;
-    }
+    if (this.isGameOver || this.isTriviaPhase) return;
 
     const lane = Phaser.Math.Between(0, 2);
     const spawnY = this.HORIZON_Y + 10;
@@ -550,27 +539,22 @@ export default class GameScene extends Phaser.Scene {
     let shadowOffsetY = 18;
 
     if (roll < 32) {
-      // Heavy Library Book Cart (MUST DODGE left/right — Cannot jump or slide)
       key = 'obs_cart';
       actionNeeded = 'dodge';
       shadowOffsetY = 38;
     } else if (roll < 58) {
-      // Stacked Textbooks (High Ground Obstacle — JUMP or DODGE)
       key = 'obs_bookstack';
       actionNeeded = 'jump';
       shadowOffsetY = 18;
     } else if (roll < 78) {
-      // Low Clearance Caution Sign (Overhead Clearance — MUST SLIDE or DODGE)
       key = 'obs_low_sign';
       actionNeeded = 'slide';
       shadowOffsetY = 16;
     } else if (roll < 90) {
-      // Classroom Study Desk (Ground Obstacle — JUMP or DODGE)
       key = 'obs_desk';
       actionNeeded = 'jump';
       shadowOffsetY = 16;
     } else {
-      // Caution Wet Floor Sign (Ground Obstacle — JUMP or DODGE)
       key = 'obs_wetfloor';
       actionNeeded = 'jump';
       shadowOffsetY = 12;
@@ -595,33 +579,12 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
-  spawnCheckpointArch() {
-    const spawnY = this.HORIZON_Y + 8;
-    const scale = this.getDepthScale(spawnY);
-
-    const shadow = this.add.image(this.VANISHING_X, spawnY + 20 * scale, 'lib_floor_shadow')
-      .setScale(scale * 2.2, scale)
-      .setAlpha(0.2)
-      .setDepth(Math.floor(spawnY) - 1);
-
-    const sprite = this.add.sprite(this.VANISHING_X, spawnY, 'checkpoint_arch')
-      .setScale(scale)
-      .setDepth(Math.floor(spawnY));
-
-    this.activeArches.push({
-      sprite,
-      shadow,
-      y: spawnY
-    });
-  }
-
   spawnCollectibles() {
-    if (this.isGameOver || this.isQuestionActive) return;
+    if (this.isGameOver || this.isTriviaPhase) return;
 
     const lane = Phaser.Math.Between(0, 2);
     const count = Phaser.Math.Between(3, 5);
 
-    // Pick a collectible pattern: A+ certificate runs, Gold books, Stars, or Study Medals
     const typeRoll = Phaser.Math.Between(0, 100);
     let itemType = 'coin';
     let textureKey = 'coin_1';
@@ -668,7 +631,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   spawnPowerup() {
-    if (this.isGameOver || this.isQuestionActive) return;
+    if (this.isGameOver || this.isTriviaPhase) return;
 
     const lane = Phaser.Math.Between(0, 2);
     const spawnY = this.HORIZON_Y + 10;
@@ -697,19 +660,330 @@ export default class GameScene extends Phaser.Scene {
   }
 
   // ────────────────────────────────────────────────────────────
+  // IN-WORLD TRIVIA GATES MECHANIC (PHASE 3)
+  // ────────────────────────────────────────────────────────────
+
+  /**
+   * Triggers the In-World Trivia Phase:
+   * 1. Pauses regular obstacle and coin spawners to provide a clear runway.
+   * 2. Slides down the Giant Question Banner at the top of the screen.
+   * 3. Spawns 3 physical answer gates side-by-side in Left, Center, and Right lanes.
+   */
+  triggerQuestionPhase() {
+    if (this.isTriviaPhase || this.isGameOver) return;
+    this.isTriviaPhase = true;
+    this.triviaResolved = false;
+
+    // 1. Suspend normal obstacle & coin spawning
+    this.spawnerTimer.paused = true;
+    this.collectibleTimer.paused = true;
+
+    // 2. Fetch question
+    if (this.questions.length === 0) {
+      this.isTriviaPhase = false;
+      this.spawnerTimer.paused = false;
+      this.collectibleTimer.paused = false;
+      return;
+    }
+
+    const question = this.questions[this.currentQuestionIndex % this.questions.length];
+    this.currentQuestionIndex++;
+    this.triviaQuestion = question;
+
+    // 3. Display Giant Question Banner
+    this.showGiantQuestionBanner(question);
+
+    // 4. Give player a clear section of empty track, then spawn Trivia Gates at horizon
+    this.time.delayedCall(1200, () => {
+      if (!this.isGameOver) {
+        this.spawnTriviaGates(question);
+      }
+    });
+  }
+
+  showGiantQuestionBanner(question) {
+    if (this.questionBannerContainer) {
+      this.questionBannerContainer.destroy();
+    }
+
+    const width = this.CANVAS_WIDTH;
+    this.questionBannerContainer = this.add.container(width / 2, -140).setDepth(260);
+
+    // Banner Glassmorphic Card
+    const card = this.add.rectangle(0, 0, width - 28, 116, 0x0c0f1e, 0.94)
+      .setStrokeStyle(2.5, 0x4cc9f0, 0.95);
+
+    // Category / Header Tag
+    const tag = this.add.text(0, -38, '🎯 TRIVIA CHECKPOINT — RUN INTO THE CORRECT LANE!', {
+      fontFamily: 'system-ui, -apple-system, sans-serif',
+      fontSize: '11px',
+      fontWeight: '900',
+      color: '#00f5d4'
+    }).setOrigin(0.5);
+
+    // Giant Question Text
+    const qText = this.add.text(0, 4, question.text, {
+      fontFamily: 'system-ui, -apple-system, sans-serif',
+      fontSize: '15px',
+      fontWeight: 'bold',
+      color: '#ffffff',
+      align: 'center',
+      wordWrap: { width: width - 56 }
+    }).setOrigin(0.5);
+
+    this.questionBannerContainer.add([card, tag, qText]);
+
+    // Slide down smoothly
+    this.tweens.add({
+      targets: this.questionBannerContainer,
+      y: 78,
+      duration: 380,
+      ease: 'Back.easeOut'
+    });
+  }
+
+  spawnTriviaGates(question) {
+    // Formulate 3 distinct choices: 1 correct, 2 distractors
+    let correctChoice = question.choices.find(c => c.isCorrect) || { text: 'Correct' };
+    let distractors = question.choices.filter(c => !c.isCorrect);
+
+    if (distractors.length < 2) {
+      distractors.push({ text: 'None of the above', isCorrect: false });
+      distractors.push({ text: 'All of the above', isCorrect: false });
+    }
+
+    const wrong1 = distractors[0];
+    const wrong2 = distractors[1];
+
+    // Randomly assign which lane (0: Left, 1: Center, 2: Right) holds the correct answer
+    const lanes = [0, 1, 2];
+    const correctLane = Phaser.Utils.Array.GetRandom(lanes);
+    const otherLanes = lanes.filter(l => l !== correctLane);
+
+    const laneAssignments = {};
+    laneAssignments[correctLane] = { text: correctChoice.text, isCorrect: true };
+    laneAssignments[otherLanes[0]] = { text: wrong1.text, isCorrect: false };
+    laneAssignments[otherLanes[1]] = { text: wrong2.text, isCorrect: false };
+
+    const spawnY = this.HORIZON_Y + 8;
+    const scale = this.getDepthScale(spawnY);
+    const letters = ['A', 'B', 'C'];
+
+    this.triviaGates = [];
+
+    // Spawn 3 Gates side-by-side across all 3 lanes
+    for (let lane = 0; lane < 3; lane++) {
+      const startX = this.getLaneX(lane, spawnY);
+      const choiceData = laneAssignments[lane];
+
+      // Ground Contact Shadow
+      const shadow = this.add.image(startX, spawnY + 28 * scale, 'lib_floor_shadow')
+        .setScale(scale * 1.6, scale * 0.9)
+        .setAlpha(0.3)
+        .setDepth(Math.floor(spawnY) - 1);
+
+      // Gate Arch
+      const arch = this.add.sprite(startX, spawnY, 'gate_arch')
+        .setScale(scale)
+        .setDepth(Math.floor(spawnY));
+
+      // Gateway Energy Curtain
+      const curtain = this.add.sprite(startX, spawnY + 16 * scale, 'gate_curtain')
+        .setScale(scale)
+        .setDepth(Math.floor(spawnY) + 1);
+
+      // Truncate long text for gate signboard
+      let displayStr = choiceData.text;
+      if (displayStr.length > 16) {
+        displayStr = displayStr.substring(0, 14) + '..';
+      }
+
+      // Gate Signboard Label
+      const text = this.add.text(startX, spawnY - 14 * scale, `[${letters[lane]}] ${displayStr}`, {
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+        fontSize: '12px',
+        fontWeight: '900',
+        color: '#ffffff',
+        align: 'center'
+      }).setOrigin(0.5).setScale(scale).setDepth(Math.floor(spawnY) + 2);
+
+      this.triviaGates.push({
+        lane,
+        letter: letters[lane],
+        choiceText: choiceData.text,
+        isCorrect: choiceData.isCorrect,
+        arch,
+        curtain,
+        text,
+        shadow,
+        y: spawnY
+      });
+    }
+
+    // Spawn Thematic Outer Props (Framing the trivia gates at hallway edges)
+    this.triviaProps = [];
+    const vx = this.VANISHING_X;
+    const p1 = this.add.sprite(vx - 70, spawnY, 'prop_oversized_book').setScale(scale).setDepth(Math.floor(spawnY) - 1);
+    const p2 = this.add.sprite(vx + 70, spawnY, 'prop_desk_lamp').setScale(scale).setDepth(Math.floor(spawnY) - 1);
+    this.triviaProps.push({ sprite: p1, side: -1, y: spawnY }, { sprite: p2, side: 1, y: spawnY });
+  }
+
+  resolveTriviaGateCollision() {
+    const chosenGate = this.triviaGates.find(g => g.lane === this.currentLane);
+    const isCorrect = chosenGate ? chosenGate.isCorrect : false;
+
+    // Record answer in database service
+    if (this.triviaQuestion) {
+      GameQuestionService.recordAnswer(this.triviaQuestion.id, isCorrect, this.gameMode);
+    }
+
+    if (this.gameMode === 'examChallenge') {
+      this.examAnswered++;
+    }
+
+    if (isCorrect) {
+      // ── HITTING THE CORRECT GATE ──
+      sounds.playCorrect();
+
+      // Confetti & Star Sparkle Bursts
+      this.createSparkleBurst(this.player.x, this.player.y - 15, 0x00f5d4);
+      this.createSparkleBurst(this.player.x + 20, this.player.y - 25, 0xffd166);
+      this.createSparkleBurst(this.player.x - 20, this.player.y - 25, 0xffbe0b);
+
+      // Score bonus, coins, streak
+      const multiplier = this.powerups.multiplier ? 2 : 1;
+      this.score += 100 * multiplier;
+      this.coins += 5 * multiplier;
+      this.streak++;
+
+      this.punchHUD(this.scoreText);
+      this.punchHUD(this.coinsText);
+
+      if (this.gameMode === 'timeAttack') {
+        this.timeAttackRemaining += 8;
+      }
+
+      // Floating Feedback Pop
+      const pop = this.add.text(this.player.x, this.player.y - 35, '✨ PERFECT! +100 PTS', {
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+        fontSize: '17px',
+        fontWeight: '900',
+        color: '#00f5d4'
+      }).setOrigin(0.5).setDepth(200);
+
+      this.tweens.add({
+        targets: pop,
+        y: pop.y - 35,
+        alpha: 0,
+        duration: 500,
+        ease: 'Cubic.easeOut',
+        onComplete: () => pop.destroy()
+      });
+
+      // Smooth pass-through: Gate flashes radiant green and curtain vanishes
+      if (chosenGate && chosenGate.curtain) {
+        chosenGate.curtain.setTint(0x38b000);
+        this.tweens.add({
+          targets: [chosenGate.curtain, chosenGate.text],
+          alpha: 0,
+          duration: 180
+        });
+      }
+
+    } else {
+      // ── HITTING AN INCORRECT GATE ──
+      sounds.playWrong();
+      sounds.playHit();
+
+      this.lives--;
+      this.streak = 0;
+      this.shakeHearts();
+
+      this.cameras.main.shake(240, 0.025);
+      this.cameras.main.flash(240, 255, 0, 0);
+
+      // Stumble animation & red tint
+      this.player.setTexture('player_hit');
+      this.player.setTint(0xff3333);
+
+      const correctGate = this.triviaGates.find(g => g.isCorrect);
+      const correctMsg = correctGate ? `Lane [${correctGate.letter}] ${correctGate.choiceText}` : 'Other Lane';
+
+      const pop = this.add.text(this.player.x, this.player.y - 35, `❌ WRONG LANE! Correct: ${correctMsg}`, {
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+        fontSize: '14px',
+        fontWeight: '900',
+        color: '#ff4d6d',
+        wordWrap: { width: 340 }
+      }).setOrigin(0.5).setDepth(200);
+
+      this.tweens.add({
+        targets: pop,
+        y: pop.y - 35,
+        alpha: 0,
+        duration: 700,
+        ease: 'Cubic.easeOut',
+        onComplete: () => pop.destroy()
+      });
+
+      if (this.lives <= 0) {
+        this.triggerGameOver();
+        return;
+      }
+
+      // Invincibility recovery
+      this.isInvincible = true;
+      this.tweens.add({
+        targets: this.player,
+        alpha: 0.25,
+        duration: 100,
+        yoyo: true,
+        repeat: 6,
+        onComplete: () => {
+          this.player.alpha = 1;
+          this.player.clearTint();
+          this.player.setTexture(`player_run_${this.runFrame}`);
+          this.isInvincible = false;
+        }
+      });
+    }
+
+    // Slide Question Banner up and off-screen
+    if (this.questionBannerContainer) {
+      this.tweens.add({
+        targets: this.questionBannerContainer,
+        y: -140,
+        duration: 350,
+        ease: 'Cubic.easeIn',
+        onComplete: () => {
+          if (this.questionBannerContainer) {
+            this.questionBannerContainer.destroy();
+            this.questionBannerContainer = null;
+          }
+        }
+      });
+    }
+
+    // Check Exam Goal
+    if (this.gameMode === 'examChallenge' && this.examAnswered >= this.examGoal) {
+      this.time.delayedCall(800, () => this.triggerGameOver(true));
+    }
+  }
+
+  // ────────────────────────────────────────────────────────────
   // VISUAL PARTICLES & EFFECTS (60 FPS POOLED SYSTEM)
   // ────────────────────────────────────────────────────────────
 
   createSparkleBurst(x, y, tint = 0xffd166) {
-    const count = 7;
+    const count = 8;
     for (let i = 0; i < count; i++) {
       const angle = (i / count) * Math.PI * 2;
-      const speed = Phaser.Math.Between(60, 140);
+      const speed = Phaser.Math.Between(70, 160);
       const vx = Math.cos(angle) * speed;
-      const vy = Math.sin(angle) * speed - 30;
+      const vy = Math.sin(angle) * speed - 35;
 
       const p = this.add.image(x, y, 'part_sparkle')
-        .setScale(Phaser.Math.FloatBetween(0.7, 1.2))
+        .setScale(Phaser.Math.FloatBetween(0.8, 1.3))
         .setTint(tint)
         .setDepth(180);
 
@@ -719,7 +993,7 @@ export default class GameScene extends Phaser.Scene {
         y: p.y + vy * 0.35,
         scale: 0.1,
         alpha: 0,
-        duration: 350,
+        duration: 360,
         ease: 'Cubic.easeOut',
         onComplete: () => p.destroy()
       });
@@ -749,18 +1023,17 @@ export default class GameScene extends Phaser.Scene {
   // ────────────────────────────────────────────────────────────
 
   update(time, delta) {
-    if (this.isGameOver || this.isQuestionActive) return;
+    if (this.isGameOver) return;
 
     const deltaSec = delta / 1000;
 
-    // 4-Frame Running Animation Cycle with Stride Bobbing
+    // Running Bob Animation
     this.runAnimTimer += delta;
     if (!this.isJumping && !this.isSliding && !this.isLanding && this.runAnimTimer > 115) {
       this.runAnimTimer = 0;
-      this.runFrame = (this.runFrame % 4) + 1; // Cycle 1 -> 2 -> 3 -> 4
+      this.runFrame = (this.runFrame % 4) + 1;
       this.player.setTexture(`player_run_${this.runFrame}`);
 
-      // Subtle vertical stride bounce
       const bob = (this.runFrame === 2 || this.runFrame === 4) ? -2 : 0;
       this.player.y = this.PLAYER_BASE_Y + bob;
     }
@@ -772,6 +1045,11 @@ export default class GameScene extends Phaser.Scene {
 
     // Dynamic speed progression
     this.speed = Math.min(this.baseSpeed + this.distance * 0.28, this.maxSpeed);
+
+    // Question Checkpoint Trigger
+    if (this.distance >= this.nextQuestionDistance && !this.isTriviaPhase) {
+      this.triggerQuestionPhase();
+    }
 
     // 1. Scroll Floor & Bookshelf Walls
     this.floorOffset = (this.floorOffset + (this.speed * deltaSec * 0.0016)) % 1;
@@ -810,7 +1088,79 @@ export default class GameScene extends Phaser.Scene {
       item.sprite.setAlpha(Math.min(1, pExp * 2));
     });
 
-    // 2. Update Obstacles with Perspective and Collision Check
+    // 2. Update In-World Trivia Gates in 2.5D Perspective
+    if (this.triviaGates.length > 0) {
+      const t = this.getDepthProgress(this.triviaGates[0].y);
+      const visualSpeed = this.speed * (0.35 + 0.95 * t);
+      const dy = visualSpeed * deltaSec;
+
+      for (let i = 0; i < this.triviaGates.length; i++) {
+        const gate = this.triviaGates[i];
+        gate.y += dy;
+
+        const curX = this.getLaneX(gate.lane, gate.y);
+        const curScale = this.getDepthScale(gate.y);
+        const depth = Math.floor(gate.y);
+
+        gate.arch.setPosition(curX, gate.y);
+        gate.arch.setScale(curScale);
+        gate.arch.setDepth(depth);
+
+        gate.curtain.setPosition(curX, gate.y + 16 * curScale);
+        gate.curtain.setScale(curScale);
+        gate.curtain.setDepth(depth + 1);
+
+        gate.text.setPosition(curX, gate.y - 14 * curScale);
+        gate.text.setScale(curScale);
+        gate.text.setDepth(depth + 2);
+
+        gate.shadow.setPosition(curX, gate.y + 28 * curScale);
+        gate.shadow.setScale(curScale * 1.6, curScale * 0.9);
+        gate.shadow.setAlpha(0.55 * Math.min(1, t + 0.25));
+        gate.shadow.setDepth(depth - 1);
+      }
+
+      // Update Thematic Outer Props
+      this.triviaProps.forEach(prop => {
+        prop.y += dy;
+        const curScale = this.getDepthScale(prop.y);
+        const curProgress = this.getDepthProgress(prop.y);
+        const curHalfW = (topW / 2) + curProgress * ((botW - topW) / 2);
+        const pX = vx + prop.side * (curHalfW + 36 * curScale);
+
+        prop.sprite.setPosition(pX, prop.y);
+        prop.sprite.setScale(curScale * 1.2);
+        prop.sprite.setDepth(Math.floor(prop.y));
+      });
+
+      // Check Gate Hitbox Collision at Player Baseline
+      if (this.triviaGates[0].y >= this.PLAYER_BASE_Y - 26 && !this.triviaResolved) {
+        this.triviaResolved = true;
+        this.resolveTriviaGateCollision();
+      }
+
+      // Cleanup Trivia Gates past canvas & resume normal spawning
+      if (this.triviaGates[0].y > this.CANVAS_HEIGHT + 90) {
+        this.triviaGates.forEach(g => {
+          g.arch.destroy();
+          g.curtain.destroy();
+          g.text.destroy();
+          g.shadow.destroy();
+        });
+        this.triviaProps.forEach(p => p.sprite.destroy());
+
+        this.triviaGates = [];
+        this.triviaProps = [];
+        this.isTriviaPhase = false;
+
+        // Resume standard endless runner spawning
+        this.spawnerTimer.paused = false;
+        this.collectibleTimer.paused = false;
+        this.nextQuestionDistance = this.distance + Phaser.Math.Between(180, 260);
+      }
+    }
+
+    // 3. Update Standard Obstacles
     for (let i = this.activeObstacles.length - 1; i >= 0; i--) {
       const obs = this.activeObstacles[i];
       const t = this.getDepthProgress(obs.y);
@@ -830,7 +1180,6 @@ export default class GameScene extends Phaser.Scene {
       obs.shadow.setAlpha(0.55 * Math.min(1, t + 0.25));
       obs.shadow.setDepth(depth - 1);
 
-      // Accurate strike-zone collision detection
       if (Math.abs(obs.y - this.PLAYER_BASE_Y) < 36 && obs.lane === this.currentLane) {
         if (!this.isInvincible && !this.isGameOver) {
           const dodgedJump = (obs.actionNeeded === 'jump' && this.isJumping);
@@ -846,7 +1195,6 @@ export default class GameScene extends Phaser.Scene {
         }
       }
 
-      // Despawn past canvas
       if (obs.y > this.CANVAS_HEIGHT + 70) {
         obs.sprite.destroy();
         obs.shadow.destroy();
@@ -854,24 +1202,20 @@ export default class GameScene extends Phaser.Scene {
       }
     }
 
-    // 3. Update Educational Collectibles (Floating, Shimmering, Magnet Pull)
+    // 4. Update Educational Collectibles
     for (let i = this.activeCollectibles.length - 1; i >= 0; i--) {
       const col = this.activeCollectibles[i];
-      const coin = col; // Backward-compatible alias for test suites
+      const coin = col;
       const t = this.getDepthProgress(col.y);
       const visualSpeed = this.speed * (0.35 + 0.95 * t);
       col.y += visualSpeed * deltaSec;
 
       let curX = this.getLaneX(col.lane, col.y);
 
-      // Floating sine wave animation
       const bobY = Math.sin((time * 0.005) + col.spawnTime * 0.01) * 5 * Math.min(1, t + 0.2);
       const renderY = col.y + bobY;
-
-      // Gentle rotational shimmer
       col.sprite.rotation = Math.sin((time * 0.004) + col.spawnTime * 0.01) * 0.08;
 
-      // Magnet pull toward player
       if (this.powerups.magnet && col.y > this.HORIZON_Y + 40) {
         const pX = this.player.x;
         const pY = this.PLAYER_BASE_Y;
@@ -895,7 +1239,6 @@ export default class GameScene extends Phaser.Scene {
       col.shadow.setAlpha(0.45 * Math.min(1, t + 0.2));
       col.shadow.setDepth(depth - 1);
 
-      // Collection Check
       const inLane = (col.lane === this.currentLane) || (this.powerups.magnet && Math.abs(curX - this.player.x) < 42);
       if (inLane && Math.abs(col.y - this.PLAYER_BASE_Y) < 36) {
         col.sprite.destroy();
@@ -912,7 +1255,7 @@ export default class GameScene extends Phaser.Scene {
       }
     }
 
-    // 4. Update Powerups
+    // 5. Update Powerups
     for (let i = this.activePowerups.length - 1; i >= 0; i--) {
       const pu = this.activePowerups[i];
       const t = this.getDepthProgress(pu.y);
@@ -948,45 +1291,11 @@ export default class GameScene extends Phaser.Scene {
       }
     }
 
-    // 5. Update Checkpoint Arches
-    for (let i = this.activeArches.length - 1; i >= 0; i--) {
-      const arch = this.activeArches[i];
-      const t = this.getDepthProgress(arch.y);
-      const visualSpeed = this.speed * (0.35 + 0.95 * t);
-      arch.y += visualSpeed * deltaSec;
-
-      const curScale = this.getDepthScale(arch.y);
-      const depth = Math.floor(arch.y);
-
-      arch.sprite.setPosition(this.VANISHING_X, arch.y);
-      arch.sprite.setScale(curScale);
-      arch.sprite.setDepth(depth);
-
-      arch.shadow.setPosition(this.VANISHING_X, arch.y + 20 * curScale);
-      arch.shadow.setScale(curScale * 2.2, curScale * 0.9);
-      arch.shadow.setAlpha(0.5 * Math.min(1, t + 0.2));
-      arch.shadow.setDepth(depth - 1);
-
-      if (Math.abs(arch.y - this.PLAYER_BASE_Y) < 35) {
-        arch.sprite.destroy();
-        arch.shadow.destroy();
-        this.activeArches.splice(i, 1);
-        this.triggerQuestionCheckpoint();
-        continue;
-      }
-
-      if (arch.y > this.CANVAS_HEIGHT + 80) {
-        arch.sprite.destroy();
-        arch.shadow.destroy();
-        this.activeArches.splice(i, 1);
-      }
-    }
-
-    // Anchor auras to player position
+    // Anchor auras to player
     this.shieldAura.setPosition(this.player.x, this.player.y - 10);
     this.magnetAura.setPosition(this.player.x, this.player.y - 10);
 
-    // Update HUD
+    // Update HUD Text
     this.scoreText.setText(`${this.score} PTS`);
     this.distText.setText(`${this.distance} M`);
     this.coinsText.setText(`🪙 ${this.coins}`);
@@ -1041,14 +1350,10 @@ export default class GameScene extends Phaser.Scene {
     this.coins += earnedCoins * multiplier;
     this.score += pts * multiplier;
 
-    // Visual Particle Burst
     this.createSparkleBurst(this.player.x, this.player.y - 15, sparkleColor);
-
-    // HUD Scale Punch
     this.punchHUD(this.scoreText);
     this.punchHUD(this.coinsText);
 
-    // Floating text feedback pop
     const pop = this.add.text(this.player.x, this.player.y - 30, popLabel, {
       fontFamily: 'system-ui, -apple-system, sans-serif',
       fontSize: item.itemType === 'aplus' ? '16px' : '14px',
@@ -1111,7 +1416,6 @@ export default class GameScene extends Phaser.Scene {
     this.cameras.main.shake(220, 0.02);
     this.cameras.main.flash(220, 255, 0, 0);
 
-    // Red tint & damage reactions
     this.shakeHearts();
     this.player.setTexture('player_hit');
     this.player.setTint(0xff3333);
@@ -1121,7 +1425,6 @@ export default class GameScene extends Phaser.Scene {
       return;
     }
 
-    // Invincibility flicker
     this.isInvincible = true;
     this.tweens.add({
       targets: this.player,
@@ -1138,176 +1441,6 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
-  // ────────────────────────────────────────────────────────────
-  // QUESTION CHECKPOINTS & OVERLAY
-  // ────────────────────────────────────────────────────────────
-
-  triggerQuestionCheckpoint() {
-    this.isQuestionActive = true;
-    this.nextQuestionDistance += Phaser.Math.Between(180, 240);
-
-    const question = this.questions[this.currentQuestionIndex % this.questions.length];
-    this.currentQuestionIndex++;
-
-    this.renderQuestionOverlay(question);
-  }
-
-  renderQuestionOverlay(question) {
-    const width = this.CANVAS_WIDTH;
-    const height = this.CANVAS_HEIGHT;
-
-    this.qContainer = this.add.container(0, 0).setDepth(300);
-
-    const backdrop = this.add.rectangle(width / 2, height / 2, width, height, 0x070913, 0.88);
-    this.qContainer.add(backdrop);
-
-    const panelWidth = 430;
-    const panelHeight = 510;
-    const panel = this.add.rectangle(width / 2, height / 2, panelWidth, panelHeight, 0x16182e)
-      .setStrokeStyle(3, 0x4361ee);
-    this.qContainer.add(panel);
-
-    const badge = this.add.text(width / 2, height / 2 - panelHeight / 2 + 30, '📚 LEARNING CHECKPOINT', {
-      fontFamily: 'system-ui, sans-serif',
-      fontSize: '15px',
-      fontWeight: 'bold',
-      color: '#00f5d4'
-    }).setOrigin(0.5);
-    this.qContainer.add(badge);
-
-    let timeLeft = 15;
-    const timerText = this.add.text(width / 2 + panelWidth / 2 - 38, height / 2 - panelHeight / 2 + 30, `⏱️ 15s`, {
-      fontFamily: 'system-ui',
-      fontSize: '13px',
-      fontWeight: 'bold',
-      color: '#ffbe0b'
-    }).setOrigin(0.5);
-    this.qContainer.add(timerText);
-
-    const countdown = this.time.addEvent({
-      delay: 1000,
-      repeat: 14,
-      callback: () => {
-        timeLeft--;
-        timerText.setText(`⏱️ ${timeLeft}s`);
-        if (timeLeft <= 0) {
-          this.handleAnswer(question, false, null, explanationText, feedbackText, choiceBtns);
-        }
-      }
-    });
-
-    const qText = this.add.text(width / 2, height / 2 - panelHeight / 2 + 80, question.text, {
-      fontFamily: 'system-ui',
-      fontSize: '16px',
-      fontWeight: '600',
-      color: '#ffffff',
-      align: 'center',
-      wordWrap: { width: panelWidth - 40 }
-    }).setOrigin(0.5, 0);
-    this.qContainer.add(qText);
-
-    const feedbackText = this.add.text(width / 2, height / 2 + panelHeight / 2 - 90, '', {
-      fontFamily: 'system-ui',
-      fontSize: '16px',
-      fontWeight: 'bold',
-      align: 'center'
-    }).setOrigin(0.5);
-    this.qContainer.add(feedbackText);
-
-    const explanationText = this.add.text(width / 2, height / 2 + panelHeight / 2 - 50, '', {
-      fontFamily: 'system-ui',
-      fontSize: '12px',
-      color: '#ced4da',
-      align: 'center',
-      wordWrap: { width: panelWidth - 40 }
-    }).setOrigin(0.5);
-    this.qContainer.add(explanationText);
-
-    const choiceBtns = [];
-    const startY = height / 2 - panelHeight / 2 + 180;
-    const btnHeight = 44;
-    const btnGap = 12;
-
-    question.choices.forEach((choice, idx) => {
-      const btnY = startY + idx * (btnHeight + btnGap);
-      const bg = this.add.rectangle(width / 2, btnY, panelWidth - 40, btnHeight, 0x242848)
-        .setStrokeStyle(1.5, 0x3d4370)
-        .setInteractive({ useHandCursor: true });
-
-      const label = this.add.text(width / 2, btnY, choice.text, {
-        fontFamily: 'system-ui',
-        fontSize: '14px',
-        fontWeight: '500',
-        color: '#ffffff',
-        align: 'center',
-        wordWrap: { width: panelWidth - 60 }
-      }).setOrigin(0.5);
-
-      bg.on('pointerdown', () => {
-        countdown.remove();
-        choiceBtns.forEach(b => b.bg.disableInteractive());
-        this.handleAnswer(question, choice.isCorrect, bg, explanationText, feedbackText, choiceBtns);
-      });
-
-      choiceBtns.push({ bg, label, isCorrect: choice.isCorrect });
-      this.qContainer.add([bg, label]);
-    });
-  }
-
-  handleAnswer(question, isCorrect, clickedBg, explanationText, feedbackText, choiceBtns) {
-    GameQuestionService.recordAnswer(question.id, isCorrect, this.gameMode);
-
-    if (this.gameMode === 'examChallenge') {
-      this.examAnswered++;
-    }
-
-    if (isCorrect) {
-      sounds.playCorrect();
-      if (clickedBg) clickedBg.setFillStyle(0x38b000);
-      feedbackText.setText('✅ Correct! Speed Boost! +50 pts').setColor('#38b000');
-      this.score += 50;
-      this.coins += 3;
-      this.streak++;
-      this.punchHUD(this.scoreText);
-      this.punchHUD(this.coinsText);
-
-      if (this.gameMode === 'timeAttack') {
-        this.timeAttackRemaining += 6;
-      }
-
-      this.cameras.main.flash(200, 56, 176, 0);
-      this.time.delayedCall(1200, () => this.resumeRunning());
-    } else {
-      sounds.playWrong();
-      if (clickedBg) clickedBg.setFillStyle(0xd90429);
-
-      choiceBtns.forEach(b => {
-        if (b.isCorrect) b.bg.setFillStyle(0x38b000);
-      });
-
-      feedbackText.setText('❌ Incorrect').setColor('#d90429');
-      explanationText.setText(`💡 ${question.explanation}`);
-      this.streak = 0;
-      this.cameras.main.flash(200, 217, 4, 41);
-
-      this.time.delayedCall(3000, () => this.resumeRunning());
-    }
-  }
-
-  resumeRunning() {
-    if (this.qContainer) {
-      this.qContainer.destroy();
-      this.qContainer = null;
-    }
-
-    if (this.gameMode === 'examChallenge' && this.examAnswered >= this.examGoal) {
-      this.triggerGameOver(true);
-      return;
-    }
-
-    this.isQuestionActive = false;
-  }
-
   togglePauseMenu() {
     this.scene.pause();
     window.dispatchEvent(new CustomEvent('study-dash-pause-game'));
@@ -1316,15 +1449,24 @@ export default class GameScene extends Phaser.Scene {
   triggerGameOver(completedExam = false) {
     this.isGameOver = true;
 
+    if (this.questionBannerContainer) {
+      this.questionBannerContainer.destroy();
+      this.questionBannerContainer = null;
+    }
+
     this.activeObstacles.forEach(o => { o.sprite.destroy(); o.shadow.destroy(); });
     this.activeCollectibles.forEach(c => { c.sprite.destroy(); c.shadow.destroy(); });
     this.activePowerups.forEach(p => { p.sprite.destroy(); p.shadow.destroy(); });
     this.activeArches.forEach(a => { a.sprite.destroy(); a.shadow.destroy(); });
+    this.triviaGates.forEach(g => { g.arch.destroy(); g.curtain.destroy(); g.text.destroy(); g.shadow.destroy(); });
+    this.triviaProps.forEach(p => p.sprite.destroy());
 
     this.activeObstacles = [];
     this.activeCollectibles = [];
     this.activePowerups = [];
     this.activeArches = [];
+    this.triviaGates = [];
+    this.triviaProps = [];
 
     this.scene.start('GameOverScene', {
       score: this.score,

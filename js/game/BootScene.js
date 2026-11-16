@@ -16,6 +16,7 @@ export default class BootScene extends Phaser.Scene {
     this.createTrainTextures();
     this.createObstacleTextures();
     this.createCheckpointArchTexture();
+    this.createTriviaGateTextures();
     this.createEducationalCollectibleTextures();
     this.createCoinTextures();
     this.createPowerupTextures();
@@ -606,6 +607,97 @@ export default class BootScene extends Phaser.Scene {
     gArch.fillRect(234, 50, 14, 30);
     gArch.generateTexture('checkpoint_arch', 260, 80);
     gArch.destroy();
+  }
+
+  createTriviaGateTextures() {
+    // 1. In-World Trivia Gate Archway (104x92 px per lane)
+    const gGate = this.make.graphics({ x: 0, y: 0, add: false });
+    // Left & Right Stone Academic Columns
+    gGate.fillStyle(0x282c3f, 1);
+    gGate.fillRoundedRect(2, 6, 14, 82, 3);
+    gGate.fillRoundedRect(88, 6, 14, 82, 3);
+    gGate.fillStyle(0x3e4460, 1);
+    gGate.fillRect(4, 8, 10, 80);
+    gGate.fillRect(90, 8, 10, 80);
+    // Column capital & plinths
+    gGate.fillStyle(0x5a6285, 1);
+    gGate.fillRect(0, 4, 18, 6);
+    gGate.fillRect(86, 4, 18, 6);
+    gGate.fillRect(0, 84, 18, 8);
+    gGate.fillRect(86, 84, 18, 8);
+
+    // Top Signboard Beam
+    gGate.fillStyle(0x131625, 0.95);
+    gGate.fillRoundedRect(4, 2, 96, 32, 5);
+    gGate.lineStyle(2, 0x4cc9f0, 0.9);
+    gGate.strokeRoundedRect(4, 2, 96, 32, 5);
+
+    // Glowing Gold Top Arch Crown
+    gGate.fillStyle(0xffd166, 1);
+    gGate.fillRoundedRect(36, 0, 32, 6, 2);
+
+    // Hazard Plinth Stripes
+    gGate.fillStyle(0xffbe0b, 1);
+    gGate.fillRect(2, 86, 14, 4);
+    gGate.fillRect(88, 86, 14, 4);
+    gGate.generateTexture('gate_arch', 104, 92);
+    gGate.destroy();
+
+    // 2. Gateway Energy Curtain Shimmer (76x54)
+    const gCurtain = this.make.graphics({ x: 0, y: 0, add: false });
+    gCurtain.fillStyle(0x00f5d4, 0.28);
+    gCurtain.fillRect(0, 0, 76, 54);
+    gCurtain.lineStyle(1.5, 0x90e0ef, 0.6);
+    for (let y = 6; y < 54; y += 12) {
+      gCurtain.strokeLineShape(new Phaser.Geom.Line(4, y, 72, y));
+    }
+    // Center chevron passing indicator
+    gCurtain.lineStyle(2.5, 0xffffff, 0.7);
+    gCurtain.strokeLineShape(new Phaser.Geom.Line(28, 22, 38, 30));
+    gCurtain.strokeLineShape(new Phaser.Geom.Line(38, 30, 48, 22));
+    gCurtain.generateTexture('gate_curtain', 76, 54);
+    gCurtain.destroy();
+
+    // 3. Thematic Outer Prop: Oversized Leather Encyclopedia (48x76)
+    const gBigBook = this.make.graphics({ x: 0, y: 0, add: false });
+    gBigBook.fillStyle(0x1a0f0a, 0.4);
+    gBigBook.fillEllipse(24, 72, 44, 8);
+    // Leather Spine & Cover
+    gBigBook.fillStyle(0x7b1113, 1); // Rich dark burgundy
+    gBigBook.fillRoundedRect(6, 4, 36, 68, 4);
+    gBigBook.fillStyle(0x9b2226, 1);
+    gBigBook.fillRect(10, 6, 30, 64);
+    // Gold Spine Ribs & Embossed Laurel
+    gBigBook.fillStyle(0xffd166, 1);
+    gBigBook.fillRect(6, 12, 6, 2);
+    gBigBook.fillRect(6, 26, 6, 2);
+    gBigBook.fillRect(6, 40, 6, 2);
+    gBigBook.fillRect(6, 54, 6, 2);
+    gBigBook.fillCircle(25, 34, 8);
+    gBigBook.fillStyle(0x9b2226, 1);
+    gBigBook.fillCircle(25, 34, 5);
+    gBigBook.generateTexture('prop_oversized_book', 48, 76);
+    gBigBook.destroy();
+
+    // 4. Thematic Outer Prop: Banker's Lamp / Campus Lantern (32x80)
+    const gLamp = this.make.graphics({ x: 0, y: 0, add: false });
+    // Pedestal
+    gLamp.fillStyle(0x343a40, 1);
+    gLamp.fillRect(10, 56, 12, 24);
+    gLamp.fillRect(6, 76, 20, 4);
+    // Brass curved stem
+    gLamp.fillStyle(0xd4af37, 1);
+    gLamp.fillRect(14, 28, 4, 28);
+    // Emerald Green Glass Shade
+    gLamp.fillStyle(0x2d6a4f, 1);
+    gLamp.fillRoundedRect(2, 18, 28, 14, 4);
+    // Amber/Gold warm light glow
+    gLamp.fillStyle(0xffe066, 0.95);
+    gLamp.fillCircle(16, 32, 8);
+    gLamp.fillStyle(0xffffff, 1);
+    gLamp.fillCircle(16, 32, 4);
+    gLamp.generateTexture('prop_desk_lamp', 32, 80);
+    gLamp.destroy();
   }
 
   createEducationalCollectibleTextures() {
