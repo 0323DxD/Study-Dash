@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#e94560" />
+  <meta name="description" content="Study Dash — Learn while you run. An educational endless runner PWA." />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Study Dash" />
+
+  <title>Study Dash</title>
+
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- Apple Touch Icons -->
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%231a1a2e'/%3E%3Ctext y='.9em' font-size='80' x='10'%3E📚%3C/text%3E%3C/svg%3E" />
+</head>
+<body>
+
+  <!-- Loading Screen Overlay -->
+  <div id="loading-screen" class="loading-screen" aria-live="polite" role="status">
+    <div class="loading-content">
+      <div class="loading-logo">
+        <span class="logo-icon">📚</span>
+        <h1 class="logo-title">Study<span class="logo-accent">Dash</span></h1>
+      </div>
+      <div class="loading-spinner" aria-label="Loading…"></div>
+      <p class="loading-text">Loading your study world…</p>
+    </div>
+  </div>
+
+  <!-- Game Canvas Container (Phaser renders here, full-screen overlay when active) -->
+  <div id="game-container" class="game-container" aria-hidden="true"></div>
+
+  <!-- Main App Shell -->
+  <div id="app-container" class="app-container">
+
+    <!-- ═══════════════════ SCREENS ═══════════════════ -->
+
+    <!-- HOME SCREEN -->
+    <section id="screen-home" class="screen active" aria-label="Home">
+      <header class="screen-header">
+        <div class="header-left">
+          <h2 class="screen-title">Study Dash</h2>
+          <p class="screen-subtitle">Ready to learn?</p>
+        </div>
+        <div class="header-right">
+          <button class="icon-btn" id="btn-settings" aria-label="Settings">⚙️</button>
+          <div class="coin-badge" id="home-coins" aria-label="Coins">
+            <span class="coin-icon">🪙</span>
+            <span id="coin-count">0</span>
+          </div>
+        </div>
+      </header>
+      <main class="screen-body">
+        <!-- Player Stats Card -->
+        <div class="stats-card card">
+          <div class="stat-item">
+            <span class="stat-value" id="stat-streak">0</span>
+            <span class="stat-label">Day Streak 🔥</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value" id="stat-answered">0</span>
+            <span class="stat-label">Answered</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value" id="stat-accuracy">0%</span>
+            <span class="stat-label">Accuracy</span>
+          </div>
+        </div>
+
+        <!-- Quick Play Row -->
+        <h3 class="section-title">Quick Play</h3>
+        <div class="quick-play-grid">
+          <button class="mode-card card" data-mode="timeAttack" aria-label="Time Attack mode">
+            <span class="mode-icon">⏱️</span>
+            <span class="mode-name">Time Attack</span>
+            <span class="mode-desc">60 seconds</span>
+          </button>
+          <button class="mode-card card" data-mode="examChallenge" aria-label="Exam Challenge mode">
+            <span class="mode-icon">📝</span>
+            <span class="mode-name">Exam Mode</span>
+            <span class="mode-desc">No hints</span>
+          </button>
+          <button class="mode-card card" data-mode="studyMode" aria-label="Study Mode">
+            <span class="mode-icon">📖</span>
+            <span class="mode-name">Study Mode</span>
+            <span class="mode-desc">With hints</span>
+          </button>
+          <button class="mode-card card" data-mode="mistakeReview" aria-label="Review Mistakes">
+            <span class="mode-icon">🔁</span>
+            <span class="mode-name">Mistakes</span>
+            <span class="mode-desc">Review errors</span>
+          </button>
+        </div>
+
+        <!-- Recent Activity -->
+        <h3 class="section-title">Continue Learning</h3>
+        <div id="recent-lessons" class="recent-list">
+          <div class="empty-state">
+            <span class="empty-icon">🌱</span>
+            <p>No recent lessons. Start adding content!</p>
+            <button class="btn btn-primary" id="btn-go-lessons">Add Lessons</button>
+          </div>
+        </div>
+
+        <!-- Achievements Row -->
+        <h3 class="section-title">Recent Achievements</h3>
+        <div id="recent-achievements" class="achievements-row">
+          <div class="empty-state small">
+            <p>Play to earn achievements! 🏆</p>
+          </div>
+        </div>
+      </main>
+    </section>
+
+    <!-- PLAY SCREEN -->
+    <section id="screen-play" class="screen" aria-label="Play">
+      <header class="screen-header">
+        <h2 class="screen-title">Play</h2>
+        <p class="screen-subtitle">Choose your challenge</p>
+      </header>
+      <main class="screen-body">
+        <div class="play-modes-list">
+          <button class="play-mode-row card" data-mode="timeAttack">
+            <div class="play-mode-icon">⏱️</div>
+            <div class="play-mode-info">
+              <span class="play-mode-name">Time Attack</span>
+              <span class="play-mode-desc">Answer as many as you can in 60 seconds</span>
+            </div>
+            <span class="play-mode-arrow">›</span>
+          </button>
+          <button class="play-mode-row card" data-mode="examChallenge">
+            <div class="play-mode-icon">📝</div>
+            <div class="play-mode-info">
+              <span class="play-mode-name">Exam Challenge</span>
+              <span class="play-mode-desc">Simulate a real exam — no hints, timed</span>
+            </div>
+            <span class="play-mode-arrow">›</span>
+          </button>
+          <button class="play-mode-row card" data-mode="studyMode">
+            <div class="play-mode-icon">📖</div>
+            <div class="play-mode-info">
+              <span class="play-mode-name">Study Mode</span>
+              <span class="play-mode-desc">Learn at your own pace with explanations</span>
+            </div>
+            <span class="play-mode-arrow">›</span>
+          </button>
+          <button class="play-mode-row card" data-mode="customRun">
+            <div class="play-mode-icon">🎯</div>
+            <div class="play-mode-info">
+              <span class="play-mode-name">Custom Run</span>
+              <span class="play-mode-desc">Pick subject, difficulty, and question count</span>
+            </div>
+            <span class="play-mode-arrow">›</span>
+          </button>
+          <button class="play-mode-row card" data-mode="mistakeReview">
+            <div class="play-mode-icon">🔁</div>
+            <div class="play-mode-info">
+              <span class="play-mode-name">Mistake Review</span>
+              <span class="play-mode-desc">Re-attempt your previously wrong answers</span>
+            </div>
+            <span class="play-mode-arrow">›</span>
+          </button>
+          <button class="play-mode-row card" data-mode="game">
+            <div class="play-mode-icon">🏃</div>
+            <div class="play-mode-info">
+              <span class="play-mode-name">Endless Runner</span>
+              <span class="play-mode-desc">The full game — answer to keep running!</span>
+            </div>
+            <span class="play-mode-arrow">›</span>
+          </button>
+        </div>
+      </main>
+    </section>
+
+    <!-- LESSONS SCREEN -->
+    <section id="screen-lessons" class="screen" aria-label="Lessons">
+      <header class="screen-header">
+        <h2 class="screen-title">Lessons</h2>
+        <div class="header-actions">
+          <button class="btn btn-secondary btn-sm" id="btn-manage-subjects">Subjects</button>
+          <button class="btn btn-primary btn-sm" id="btn-add-lesson">+ Lesson</button>
+        </div>
+      </header>
+      <main class="screen-body">
+        <!-- Subject filter chips -->
+        <div id="subject-filter" class="chip-row" role="group" aria-label="Filter by subject"></div>
+        <!-- Lesson list -->
+        <div id="lesson-list" class="lesson-list">
+          <div class="empty-state">
+            <span class="empty-icon">📚</span>
+            <p>No lessons yet. Tap "+ Lesson" to add one!</p>
+          </div>
+        </div>
+      </main>
+      <!-- FAB -->
+      <button class="fab" id="fab-add-lesson" aria-label="Add new lesson">+</button>
+    </section>
+
+    <!-- QUESTION BANK SCREEN -->
+    <section id="screen-questionBank" class="screen" aria-label="Question Bank">
+      <header class="screen-header">
+        <button class="icon-btn back-btn" aria-label="Go back">←</button>
+        <h2 class="screen-title">Question Bank</h2>
+        <div class="header-actions" style="display: flex; gap: 6px;">
+          <button class="btn btn-secondary btn-sm" id="btn-import-questions">📥 Import</button>
+          <button class="btn btn-secondary btn-sm" id="btn-export-questions">📤 Export</button>
+          <button class="btn btn-primary btn-sm" id="btn-add-question">+ Question</button>
+        </div>
+      </header>
+      <main class="screen-body">
+        <div class="filter-row">
+          <select class="form-select" id="filter-subject" aria-label="Filter by subject">
+            <option value="">All Subjects</option>
+          </select>
+          <select class="form-select" id="filter-difficulty" aria-label="Filter by difficulty">
+            <option value="">All Levels</option>
+            <option value="easy">Easy</option>
+            <option value="medium">Medium</option>
+            <option value="hard">Hard</option>
+          </select>
+          <select class="form-select" id="filter-type" aria-label="Filter by type">
+            <option value="">All Types</option>
+            <option value="mcq">Multiple Choice</option>
+            <option value="truefalse">True/False</option>
+            <option value="identification">Identification</option>
+            <option value="enumeration">Enumeration</option>
+          </select>
+        </div>
+        <div id="question-list" class="question-list">
+          <div class="empty-state">
+            <span class="empty-icon">❓</span>
+            <p>No questions yet. Add some to get started!</p>
+          </div>
+        </div>
+      </main>
+    </section>
+
+    <!-- REVIEWER SCREEN -->
+    <section id="screen-reviewer" class="screen" aria-label="Reviewer">
+      <header class="screen-header">
+        <button class="icon-btn back-btn" aria-label="Go back">←</button>
+        <h2 class="screen-title" id="reviewer-title">Reviewer</h2>
+        <div class="reviewer-progress-mini">
+          <span id="reviewer-current">0</span>/<span id="reviewer-total">0</span>
+        </div>
+      </header>
+      <main class="screen-body reviewer-body" id="reviewer-body">
+        <!-- Dynamically populated by reviewer module -->
+      </main>
+      <footer class="reviewer-footer">
+        <button class="btn btn-secondary" id="btn-reviewer-prev" disabled>← Prev</button>
+        <button class="btn btn-primary" id="btn-reviewer-next">Next →</button>
+      </footer>
+    </section>
+
+    <!-- PROGRESS SCREEN -->
+    <section id="screen-progress" class="screen" aria-label="Progress">
+      <header class="screen-header">
+        <h2 class="screen-title">Progress</h2>
+        <button class="icon-btn" id="btn-reset-progress" aria-label="Reset progress">🗑️</button>
+      </header>
+      <main class="screen-body">
+        <!-- Overall stats -->
+        <div class="card progress-overview">
+          <h3 class="card-title">Overall Stats</h3>
+          <div class="stats-grid-4">
+            <div class="stat-item">
+              <span class="stat-value" id="prog-total">0</span>
+              <span class="stat-label">Total Answered</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-value" id="prog-correct">0</span>
+              <span class="stat-label">Correct</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-value" id="prog-accuracy">0%</span>
+              <span class="stat-label">Accuracy</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-value" id="prog-streak">0</span>
+              <span class="stat-label">Best Streak</span>
+            </div>
+          </div>
+          <div class="progress-bar-wrapper">
+            <label class="progress-bar-label">Overall Progress</label>
+            <div class="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+              <div class="progress-bar-fill" id="prog-bar" style="width:0%"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Subject breakdown -->
+        <h3 class="section-title">By Subject</h3>
+        <div id="subject-progress-list" class="subject-progress-list">
+          <div class="empty-state small"><p>Play some games to see progress!</p></div>
+        </div>
+
+        <!-- Score history -->
+        <h3 class="section-title">Recent Scores</h3>
+        <div id="score-history" class="score-history-list">
+          <div class="empty-state small"><p>No scores yet.</p></div>
+        </div>
+
+        <!-- Achievements -->
+        <h3 class="section-title">Achievements</h3>
+        <div id="achievements-grid" class="achievements-grid">
+          <div class="empty-state small"><p>Play to unlock achievements! 🏆</p></div>
+        </div>
+      </main>
+    </section>
+
+    <!-- SETTINGS SCREEN -->
+    <section id="screen-settings" class="screen" aria-label="Settings">
+      <header class="screen-header">
+        <button class="icon-btn back-btn" aria-label="Go back">←</button>
+        <h2 class="screen-title">Settings</h2>
+      </header>
+      <main class="screen-body">
+        <div class="card settings-section">
+          <h3 class="settings-group-title">Player</h3>
+          <div class="form-group">
+            <label class="form-label" for="setting-username">Display Name</label>
+            <input class="form-input" type="text" id="setting-username" placeholder="Enter your name" />
+          </div>
+        </div>
+        <div class="card settings-section">
+          <h3 class="settings-group-title">Game</h3>
+          <div class="setting-row">
+            <span class="setting-label">Sound Effects</span>
+            <label class="toggle-switch" aria-label="Toggle sound effects">
+              <input type="checkbox" id="setting-sfx" checked />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="setting-row">
+            <span class="setting-label">Music</span>
+            <label class="toggle-switch" aria-label="Toggle music">
+              <input type="checkbox" id="setting-music" checked />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="setting-row">
+            <span class="setting-label">Vibration</span>
+            <label class="toggle-switch" aria-label="Toggle vibration">
+              <input type="checkbox" id="setting-vibration" checked />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+        <div class="card settings-section">
+          <h3 class="settings-group-title">Study</h3>
+          <div class="form-group">
+            <label class="form-label" for="setting-daily-goal">Daily Question Goal</label>
+            <select class="form-select" id="setting-daily-goal">
+              <option value="10">10 questions</option>
+              <option value="20" selected>20 questions</option>
+              <option value="30">30 questions</option>
+              <option value="50">50 questions</option>
+            </select>
+          </div>
+          <div class="setting-row">
+            <span class="setting-label">Show Explanations</span>
+            <label class="toggle-switch" aria-label="Toggle explanations">
+              <input type="checkbox" id="setting-explanations" checked />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+        <div class="card settings-section">
+          <h3 class="settings-group-title">Data Backup & Restore</h3>
+          <p class="text-muted fs-xs" style="margin-bottom: 12px;">Export all lessons and questions as a backup JSON file or import a saved backup.</p>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button class="btn btn-secondary btn-sm" id="btn-settings-export">📤 Export All Data</button>
+            <button class="btn btn-secondary btn-sm" id="btn-settings-import">📥 Import Backup</button>
+          </div>
+        </div>
+        <div class="card settings-section danger-zone">
+          <h3 class="settings-group-title">Danger Zone</h3>
+          <button class="btn btn-danger" id="btn-clear-data">Clear All Data</button>
+        </div>
+      </main>
+    </section>
+
+    <!-- SUBJECT MANAGER SCREEN -->
+    <section id="screen-subjectManager" class="screen" aria-label="Subject Manager">
+      <header class="screen-header">
+        <button class="icon-btn back-btn" aria-label="Go back">←</button>
+        <h2 class="screen-title">Subjects</h2>
+      </header>
+      <main class="screen-body">
+        <div class="card form-card">
+          <h3 class="card-title">Add Subject</h3>
+          <div class="form-row">
+            <input class="form-input" type="text" id="new-subject-name" placeholder="Subject name (e.g. Math)" aria-label="Subject name" />
+            <input class="form-input color-input" type="color" id="new-subject-color" value="#e94560" aria-label="Subject color" />
+            <button class="btn btn-primary" id="btn-save-subject">Add</button>
+          </div>
+        </div>
+        <div id="subjects-list" class="subjects-list">
+          <div class="empty-state small"><p>No subjects yet.</p></div>
+        </div>
+      </main>
+    </section>
+
+    <!-- ADD / EDIT LESSON SCREEN -->
+    <section id="screen-addLesson" class="screen" aria-label="Add Lesson">
+      <header class="screen-header">
+        <button class="icon-btn back-btn" aria-label="Go back">←</button>
+        <h2 class="screen-title" id="lesson-form-title">Add Lesson</h2>
+      </header>
+      <main class="screen-body">
+        <form id="lesson-form" class="form-card card" novalidate>
+          <input type="hidden" id="lesson-id" />
+          <div class="form-group">
+            <label class="form-label" for="lesson-subject">Subject *</label>
+            <select class="form-select" id="lesson-subject" required aria-required="true">
+              <option value="">Choose a subject…</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="lesson-title">Title *</label>
+            <input class="form-input" type="text" id="lesson-title" placeholder="Lesson title" required aria-required="true" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="lesson-description">Description</label>
+            <textarea class="form-textarea" id="lesson-description" rows="3" placeholder="Brief description of this lesson"></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="lesson-notes">Notes / Content</label>
+            <textarea class="form-textarea" id="lesson-notes" rows="6" placeholder="Lesson notes, key concepts, formulas…"></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="lesson-difficulty">Difficulty</label>
+            <select class="form-select" id="lesson-difficulty">
+              <option value="easy">Easy</option>
+              <option value="medium" selected>Medium</option>
+              <option value="hard">Hard</option>
+            </select>
+          </div>
+          <div class="form-actions">
+            <button type="button" class="btn btn-secondary" id="btn-cancel-lesson">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="btn-submit-lesson">Save Lesson</button>
+          </div>
+        </form>
+      </main>
+    </section>
+
+    <!-- EDIT LESSON SCREEN (alias, same form is reused) -->
+    <section id="screen-editLesson" class="screen" aria-label="Edit Lesson">
+      <header class="screen-header">
+        <button class="icon-btn back-btn" aria-label="Go back">←</button>
+        <h2 class="screen-title">Edit Lesson</h2>
+      </header>
+      <main class="screen-body">
+        <div class="redirect-notice card">
+          <p>Redirecting to lesson editor…</p>
+        </div>
+      </main>
+    </section>
+
+    <!-- ADD QUESTION SCREEN -->
+    <section id="screen-addQuestion" class="screen" aria-label="Add Question">
+      <header class="screen-header">
+        <button class="icon-btn back-btn" aria-label="Go back">←</button>
+        <h2 class="screen-title" id="question-form-title">Add Question</h2>
+      </header>
+      <main class="screen-body">
+        <form id="question-form" class="form-card card" novalidate>
+          <input type="hidden" id="question-id" />
+          <div class="form-group">
+            <label class="form-label" for="q-subject">Subject *</label>
+            <select class="form-select" id="q-subject" required aria-required="true">
+              <option value="">Choose a subject…</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="q-lesson">Lesson (optional)</label>
+            <select class="form-select" id="q-lesson">
+              <option value="">No specific lesson</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="q-type">Question Type *</label>
+            <select class="form-select" id="q-type" required aria-required="true">
+              <option value="mcq">Multiple Choice</option>
+              <option value="truefalse">True / False</option>
+              <option value="identification">Identification</option>
+              <option value="enumeration">Enumeration</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="q-difficulty">Difficulty</label>
+            <select class="form-select" id="q-difficulty">
+              <option value="easy">Easy</option>
+              <option value="medium" selected>Medium</option>
+              <option value="hard">Hard</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="q-text">Question *</label>
+            <textarea class="form-textarea" id="q-text" rows="3" placeholder="Enter your question here…" required aria-required="true"></textarea>
+          </div>
+          <!-- Dynamic answer fields rendered by JS based on type -->
+          <div id="q-answers-container" class="q-answers-container"></div>
+          <div class="form-group">
+            <label class="form-label" for="q-explanation">Explanation (shown after answer)</label>
+            <textarea class="form-textarea" id="q-explanation" rows="2" placeholder="Why is this the correct answer?"></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="q-points">Points</label>
+            <input class="form-input" type="number" id="q-points" value="10" min="1" max="100" />
+          </div>
+          <div class="form-actions">
+            <button type="button" class="btn btn-secondary" id="btn-cancel-question">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="btn-submit-question">Save Question</button>
+          </div>
+        </form>
+      </main>
+    </section>
+
+    <!-- EDIT QUESTION SCREEN (reuses add form) -->
+    <section id="screen-editQuestion" class="screen" aria-label="Edit Question">
+      <header class="screen-header">
+        <button class="icon-btn back-btn" aria-label="Go back">←</button>
+        <h2 class="screen-title">Edit Question</h2>
+      </header>
+      <main class="screen-body">
+        <div class="redirect-notice card"><p>Redirecting to question editor…</p></div>
+      </main>
+    </section>
+
+    <!-- STUDY MODE SCREEN -->
+    <section id="screen-studyMode" class="screen" aria-label="Study Mode">
+      <header class="screen-header">
+        <button class="icon-btn back-btn" aria-label="Go back">←</button>
+        <h2 class="screen-title">Study Mode</h2>
+        <div class="session-meta" id="study-session-meta">
+          <span id="study-progress-text">0 / 0</span>
+        </div>
+      </header>
+      <main class="screen-body session-body" id="study-mode-body">
+        <!-- Dynamically populated by study module -->
+      </main>
+    </section>
+
+    <!-- EXAM CHALLENGE SCREEN -->
+    <section id="screen-examChallenge" class="screen" aria-label="Exam Challenge">
+      <header class="screen-header">
+        <button class="icon-btn back-btn" aria-label="Go back">←</button>
+        <h2 class="screen-title">Exam Mode</h2>
+        <div class="exam-timer-display" id="exam-timer-display">
+          <span>⏱</span> <span id="exam-timer">00:00</span>
+        </div>
+      </header>
+      <main class="screen-body session-body" id="exam-mode-body">
+        <!-- Dynamically populated by exam module -->
+      </main>
+    </section>
+
+    <!-- TIME ATTACK SCREEN -->
+    <section id="screen-timeAttack" class="screen" aria-label="Time Attack">
+      <header class="screen-header">
+        <button class="icon-btn back-btn" aria-label="Go back">←</button>
+        <h2 class="screen-title">Time Attack</h2>
+        <div class="time-attack-hud">
+          <span class="ta-timer" id="ta-timer">60</span>
+          <span class="ta-score" id="ta-score">0</span>
+        </div>
+      </header>
+      <main class="screen-body session-body" id="time-attack-body">
+        <!-- Dynamically populated by timeAttack module -->
+      </main>
+    </section>
+
+    <!-- CUSTOM RUN SCREEN -->
+    <section id="screen-customRun" class="screen" aria-label="Custom Run">
+      <header class="screen-header">
+        <button class="icon-btn back-btn" aria-label="Go back">←</button>
+        <h2 class="screen-title">Custom Run</h2>
+      </header>
+      <main class="screen-body">
+        <form id="custom-run-form" class="form-card card">
+          <div class="form-group">
+            <label class="form-label">Subject</label>
+            <select class="form-select" id="cr-subject">
+              <option value="">All Subjects</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Difficulty</label>
+            <select class="form-select" id="cr-difficulty">
+              <option value="">All Levels</option>
+              <option value="easy">Easy</option>
+              <option value="medium">Medium</option>
+              <option value="hard">Hard</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Question Count</label>
+            <select class="form-select" id="cr-count">
+              <option value="10">10 questions</option>
+              <option value="20" selected>20 questions</option>
+              <option value="30">30 questions</option>
+              <option value="50">50 questions</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Question Type</label>
+            <select class="form-select" id="cr-type">
+              <option value="">All Types</option>
+              <option value="mcq">Multiple Choice</option>
+              <option value="truefalse">True/False</option>
+              <option value="identification">Identification</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Mode</label>
+            <div class="radio-group" role="group" aria-label="Game mode">
+              <label class="radio-label">
+                <input type="radio" name="cr-mode" value="studyMode" checked /> Study (hints on)
+              </label>
+              <label class="radio-label">
+                <input type="radio" name="cr-mode" value="examChallenge" /> Exam (no hints)
+              </label>
+              <label class="radio-label">
+                <input type="radio" name="cr-mode" value="timeAttack" /> Time Attack
+              </label>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary btn-full">Start Run →</button>
+        </form>
+      </main>
+    </section>
+
+    <!-- MISTAKE REVIEW SCREEN -->
+    <section id="screen-mistakeReview" class="screen" aria-label="Mistake Review">
+      <header class="screen-header">
+        <button class="icon-btn back-btn" aria-label="Go back">←</button>
+        <h2 class="screen-title">Mistakes</h2>
+        <button class="btn btn-secondary btn-sm" id="btn-clear-mistakes">Clear All</button>
+      </header>
+      <main class="screen-body session-body" id="mistake-review-body">
+        <!-- Dynamically populated -->
+      </main>
+    </section>
+
+    <!-- GAME SCREEN (Phaser overlay) -->
+    <section id="screen-game" class="screen game-screen" aria-label="Game">
+      <!-- Phaser canvas is in #game-container outside, game HUD overlaid here -->
+      <div class="game-hud" id="game-hud">
+        <div class="hud-left">
+          <button class="icon-btn hud-btn" id="btn-pause-game" aria-label="Pause game">⏸</button>
+        </div>
+        <div class="hud-center">
+          <span class="hud-score" id="game-score">0</span>
+        </div>
+        <div class="hud-right">
+          <span class="hud-coins">🪙 <span id="game-coins">0</span></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════ BOTTOM NAV ═══════════════════ -->
+    <nav class="bottom-nav" id="bottom-nav" role="tablist" aria-label="Main navigation">
+      <button class="nav-tab active" data-screen="home" role="tab" aria-selected="true" aria-label="Home">
+        <span class="nav-icon">🏠</span>
+        <span class="nav-label">Home</span>
+      </button>
+      <button class="nav-tab" data-screen="play" role="tab" aria-selected="false" aria-label="Play">
+        <span class="nav-icon">🎮</span>
+        <span class="nav-label">Play</span>
+      </button>
+      <button class="nav-tab nav-tab-center" data-screen="lessons" role="tab" aria-selected="false" aria-label="Lessons">
+        <span class="nav-icon-center">📚</span>
+      </button>
+      <button class="nav-tab" data-screen="questionBank" role="tab" aria-selected="false" aria-label="Question Bank">
+        <span class="nav-icon">🗂️</span>
+        <span class="nav-label">Bank</span>
+      </button>
+      <button class="nav-tab" data-screen="progress" role="tab" aria-selected="false" aria-label="Progress">
+        <span class="nav-icon">📊</span>
+        <span class="nav-label">Progress</span>
+      </button>
+    </nav>
+
+  </div><!-- /#app-container -->
+
+  <!-- Toast Container -->
+  <div id="toast-container" class="toast-container" role="alert" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- Modal Overlay -->
+  <div id="modal-overlay" class="modal-overlay" aria-hidden="true">
+    <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-title">Modal</h3>
+        <button class="icon-btn modal-close" id="btn-modal-close" aria-label="Close modal">✕</button>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
+      <div class="modal-footer" id="modal-footer"></div>
+    </div>
+  </div>
+
+  <!-- Phaser 3 -->
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+
+  <!-- Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then(reg => console.log('[SW] Registered:', reg.scope))
+          .catch(err => console.warn('[SW] Registration failed:', err));
+      });
+    }
+  </script>
+
+  <!-- App Entry Point -->
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
